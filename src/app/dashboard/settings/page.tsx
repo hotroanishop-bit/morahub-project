@@ -42,8 +42,6 @@ export default function SettingsPage() {
     fetch("/api/telegram/verify").then((r) => r.json()).then(setTgStatus).catch(() => {});
   }, []);
 
-  function copyKey(key: string) { navigator.clipboard.writeText(key); toast.success("Đã copy!"); }
-
   async function saveProfile() {
     setSaving(true);
     try {

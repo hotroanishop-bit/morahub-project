@@ -68,7 +68,8 @@ export async function handleTelegramUpdate(update: any) {
       `/keys - API Keys\n` +
       `/usage - Thống kê sử dụng\n` +
       `/help - Hướng dẫn\n\n` +
-      `🌐 <a href="https://morahub.online">morahub.online</a>`,
+      `🌐 <a href="https://morahub.online">morahub.online</a>\n` +
+      `💬 Hỗ trợ: <a href="https://t.me/MoraSupport_bot">@MoraSupport_bot</a>`,
       { parse_mode: "HTML" }
     );
     return;
@@ -218,7 +219,8 @@ export async function handleTelegramUpdate(update: any) {
     }
 
     // Link!
-    const CREDIT_REWARD = 50000;
+    const settings = await prisma.siteSettings.findFirst();
+    const CREDIT_REWARD = settings?.telegramVerifyCredit ?? 50000;
     await prisma.user.update({
       where: { id: websiteUser.id },
       data: {
@@ -265,7 +267,8 @@ export async function handleTelegramUpdate(update: any) {
       `/usage - Thống kê sử dụng\n` +
       `/help - Hướng dẫn\n\n` +
       `🌐 Website: <a href="https://morahub.online">morahub.online</a>\n` +
-      `📧 Support: support@morahub.online`,
+      `📧 Support: support@morahub.online\n` +
+      `💬 Telegram: <a href="https://t.me/MoraSupport_bot">@MoraSupport_bot</a>`,
       { parse_mode: "HTML" }
     );
     return;
