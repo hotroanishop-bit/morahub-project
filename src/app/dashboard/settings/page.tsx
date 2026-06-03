@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User, Shield, Bell, Key, Save, Eye, EyeOff, AlertTriangle, CreditCard, Loader2, ExternalLink, Globe, MessageCircle } from "lucide-react";
+import { User, Shield, Bell, Key, Save, Eye, EyeOff, AlertTriangle, CreditCard, Loader2, ExternalLink, Globe, MessageCircle, CheckCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();

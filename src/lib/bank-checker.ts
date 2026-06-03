@@ -64,7 +64,8 @@ export async function checkDeposits() {
       toDate: toDateStr,
     });
 
-    if (!transactions?.transactions) return;
+    if (!transactions) return;
+    const txList = Array.isArray(transactions) ? transactions : (transactions as any).transactions || [];
 
     // Find pending deposits with MORA reference
     const pendingDeposits = await prisma.transaction.findMany({
@@ -78,7 +79,7 @@ export async function checkDeposits() {
 
     for (const tx of pendingDeposits) {
       // Match by reference code in transaction description
-      const match = transactions.transactions.find((bankTx: any) => {
+      const match = txList.find((bankTx: any) => {
         const desc = (bankTx.description || bankTx.content || bankTx.narrative || "").toUpperCase();
         const ref = (tx.reference || "").toUpperCase();
         return desc.includes(ref) && Number(bankTx.amount) >= Number(tx.amount);
