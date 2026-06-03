@@ -1,0 +1,367 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================== USERS ========================
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  name             String?
+  password         String?
+  image            String?
+  phone            String?
+  creditBalance    Decimal   @default(0)
+  role             String    @default("USER") // USER | ADMIN
+  status           String    @default("ACTIVE") // ACTIVE | BANNED | PENDING
+  planId           String?
+  plan             Plan?     @relation(fields: [planId], references: [id])
+  planStartDate    DateTime?
+  planEndDate      DateTime?
+  twoFactorSecret  String?
+  twoFactorEnabled Boolean   @default(false)
+  referralCode     String?   @unique
+  referredBy       String?
+  telegramId       String?   @unique
+  telegramVerified Boolean   @default(false)
+  telegramVerifyCode String?
+  telegramVerifyExpiry DateTime?
+  projects         Project[]
+  tickets          Ticket[]
+  webhooks         Webhook[]
+  apiKeys          ApiKey[]
+  usageLogs        UsageLog[]
+  transactions     Transaction[]
+  notifications    UserNotification[]
+  sentMessages     TicketMessage[]
+  chatSessions     ChatSession[]
+  auditLogs        AuditLog[]
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@map("users")
+}
+
+// ======================== PLANS ========================
+model Plan {
+  id           String   @id @default(cuid())
+  name         String   @unique
+  displayName  String
+  description  String?
+  price        Decimal
+  yearlyPrice  Decimal?
+  credits      Int
+  rateLimit    Int
+  burstLimit   Int      @default(0)
+  maxKeys      Int      @default(5)
+  maxTokens    Int      @default(4096)
+  dailyCalls   Int      @default(0) // 0 = unlimited
+  dailyTokens  Int      @default(0) // 0 = unlimited
+  features     String?
+  billingCycle String   @default("monthly") // monthly | yearly | payg
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  users        User[]
+  createdAt    DateTime @default(now())
+
+  @@map("plans")
+}
+
+// ======================== MODELS ========================
+model AiModel {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  displayName   String
+  provider      String
+  pricePer1kIn  Decimal  @default(0)
+  pricePer1kOut Decimal  @default(0)
+  maxTokens     Int      @default(4096)
+  contextWindow Int      @default(128000)
+  isActive      Boolean  @default(true)
+  fallbackModel String?  // Model to use if primary is down
+  description   String?
+  usageLogs     UsageLog[]
+  createdAt     DateTime @default(now())
+
+  @@map("ai_models")
+}
+
+// ======================== PROJECTS ========================
+model Project {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  name        String
+  description String?
+  isActive    Boolean  @default(true)
+  apiKeys     ApiKey[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("projects")
+}
+
+// ======================== API KEYS ========================
+model ApiKey {
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  name           String
+  key            String    @unique
+  isActive       Boolean   @default(true)
+  keyType        String    @default("FULL") // FULL | READ_ONLY | WRITE_ONLY
+  expiresAt      DateTime?
+  allowedIPs     String?
+  allowedDomains String?
+  rateLimit      Int?
+  projectId      String?
+  project        Project?  @relation(fields: [projectId], references: [id])
+  totalCalls     Int       @default(0)
+  totalTokens    Int       @default(0)
+  maxCalls       Int?      // Max total calls (null = unlimited)
+  maxTokens      Int?      // Max total tokens (null = unlimited)
+  lastModel      String?
+  usageLogs      UsageLog[]
+  createdAt      DateTime  @default(now())
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+
+  @@map("api_keys")
+}
+
+// ======================== USAGE LOGS ========================
+model UsageLog {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  apiKeyId  String
+  apiKey    ApiKey   @relation(fields: [apiKeyId], references: [id])
+  modelId   String
+  model     AiModel  @relation(fields: [modelId], references: [id])
+  tokensIn  Int
+  tokensOut Int
+  cost      Decimal
+  latency   Int      @default(0)
+  status    String   @default("success") // success | error
+  errorMsg  String?
+  createdAt DateTime @default(now())
+
+  @@map("usage_logs")
+}
+
+// ======================== TRANSACTIONS ========================
+model Transaction {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  amount        Decimal
+  paymentMethod String
+  status        String   @default("PENDING") // PENDING | COMPLETED | FAILED | REFUNDED
+  reference     String?
+  note          String?
+  adminNote     String?
+  invoiceUrl    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("transactions")
+}
+
+// ======================== NOTIFICATIONS ========================
+model UserNotification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  message   String
+  type      String   @default("info")
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ======================== TICKETS ========================
+model Ticket {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  subject    String
+  status     String   @default("OPEN") // OPEN | REPLYING | RESOLVED | CLOSED
+  priority   String   @default("normal")
+  category   String   @default("general")
+  messages   TicketMessage[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id])
+  senderId  String?  // null = system
+  sender    User?    @relation(fields: [senderId], references: [id])
+  isAdmin   Boolean  @default(false)
+  content   String
+  createdAt DateTime @default(now())
+
+  @@map("ticket_messages")
+}
+
+// ======================== COUPONS ========================
+model Coupon {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  discount  Int
+  maxUses   Int       @default(100)
+  usedCount Int       @default(0)
+  amount    Decimal   @default(0)
+  isActive  Boolean   @default(true)
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@map("coupons")
+}
+
+// ======================== WEBHOOKS ========================
+model Webhook {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  url       String
+  events    String
+  isActive  Boolean  @default(true)
+  secret    String?
+  createdAt DateTime @default(now())
+
+  @@map("webhooks")
+}
+
+// ======================== SYSTEM SETTINGS ========================
+model SystemSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+  desc  String?
+
+  @@map("system_settings")
+}
+
+// ======================== ANNOUNCEMENTS ========================
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String   @default("info") // info | warning | maintenance
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("announcements")
+}
+
+// ======================== REQUEST LOGS ========================
+model RequestLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  apiKeyId    String?
+  model       String
+  endpoint    String
+  method      String   @default("POST")
+  requestBody String?  @db.LongText
+  responseBody String? @db.LongText
+  statusCode  Int?
+  latency     Int?
+  tokensIn    Int?
+  tokensOut   Int?
+  cost        Decimal? @db.Decimal(10, 6)
+  ip          String?
+  userAgent   String?
+  cached      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([apiKeyId])
+  @@index([createdAt])
+  @@map("request_logs")
+}
+
+// ======================== CHAT HISTORY (Playground) ========================
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  title     String
+  model     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  messages  ChatMessage[]
+
+  @@index([userId])
+  @@map("chat_sessions")
+}
+
+model ChatMessage {
+  id        String      @id @default(cuid())
+  sessionId String
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  role      String      // user | assistant | system
+  content   String
+  tokens    Int?
+  createdAt DateTime    @default(now())
+
+  @@index([sessionId])
+  @@map("chat_messages")
+}
+
+// ======================== AUDIT LOG ========================
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  action    String   // CREATE, UPDATE, DELETE, LOGIN, etc.
+  entity    String   // User, ApiKey, Model, Transaction, etc.
+  entityId  String?
+  details   String?  // JSON string
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@map("audit_logs")
+}
+
+model SiteSettings {
+  id              String   @id @default(cuid())
+  // Bank
+  bankName        String   @default("VietcomBank")
+  bankBin         String   @default("970432")
+  accountNo       String   @default("")
+  accountName     String   @default("")
+  minDeposit      Int      @default(10000)
+  depositNote     String   @default("MoraHub nap tien")
+  // Site
+  siteName        String   @default("MoraHub")
+  siteDesc        String   @default("")
+  siteUrl         String   @default("https://morahub.online")
+  supportEmail    String   @default("")
+  supportTelegram String   @default("")
+  // API Backend
+  ckeyApiKey      String   @default("")
+  ckeyBaseUrl     String   @default("https://ckey.vn/v1")
+  defaultRateLimit Int     @default(30)
+  defaultCredits  Int      @default(10000)
+  // Notifications
+  notifyNewUser   Boolean  @default(true)
+  notifyDeposit   Boolean  @default(true)
+  notifyTicket    Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("site_settings")
+}
