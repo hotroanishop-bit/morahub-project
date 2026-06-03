@@ -23,7 +23,7 @@ export default function TopUpPage() {
 
   useEffect(() => {
     fetch("/api/admin/settings").then((r) => r.json()).then((d) => { if (d.accountNo) setSettings(d); }).catch(() => {});
-    fetch("/api/top-up").then((r) => r.json()).then((d) => setHistory(Array.isArray(d) ? d : [])).catch(() => {});
+    fetch("/api/top-up").then((r) => r.json()).then((d) => setHistory(Array.isArray(d) ? d : d.transactions || [])).catch(() => {});
   }, []);
 
   const finalAmount = customAmount ? parseInt(customAmount) || 0 : amount;
@@ -58,6 +58,21 @@ export default function TopUpPage() {
       toast.success("Tạo lệnh nạp tiền thành công!");
     } catch { toast.error("Lỗi kết nối"); }
     setSubmitting(false);
+  }
+
+  async function checkStatus() {
+    if (!transaction) return;
+    try {
+      const res = await fetch("/api/top-up");
+      const data = await res.json();
+      const tx = Array.isArray(data) ? data.find((t: any) => t.id === transaction.id) : null;
+      if (tx?.status === "COMPLETED") {
+        setTransaction({ ...transaction, status: "COMPLETED" });
+        toast.success("Nạp tiền thành công!");
+      } else {
+        toast.info("Đang chờ xử lý...");
+      }
+    } catch { toast.error("Lỗi kiểm tra"); }
   }
 
   function formatStatus(s: string) {
@@ -141,7 +156,12 @@ export default function TopUpPage() {
 
           <p className="text-xs text-slate-400 mt-4">Quét QR hoặc chuyển khoản đúng nội dung. Hệ thống tự động xử lý trong 1-5 phút.</p>
 
-          <Button onClick={() => setTransaction(null)} variant="outline" className="w-full mt-4 rounded-xl">Hủy</Button>
+          <div className="flex gap-3 mt-4">
+            <Button onClick={checkStatus} variant="outline" className="flex-1 rounded-xl border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+              <RefreshCw className="w-4 h-4 mr-2" /> Kiểm Tra
+            </Button>
+            <Button onClick={() => setTransaction(null)} variant="outline" className="flex-1 rounded-xl">Hủy</Button>
+          </div>
         </div>
       </div>
     );
