@@ -45,6 +45,12 @@ export default function AdminSettingsPage() {
   const [telegramVerifyCredit, setTelegramVerifyCredit] = useState("50000");
   const [emailVerifyRequired, setEmailVerifyRequired] = useState(false);
 
+  // MB Bank Auto-Deposit
+  const [bankUsername, setBankUsername] = useState("");
+  const [bankPassword, setBankPassword] = useState("");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankActive, setBankActive] = useState(false);
+
   // API Test
   const [testStatus, setTestStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [testResult, setTestResult] = useState("");
@@ -72,6 +78,9 @@ export default function AdminSettingsPage() {
       if (d.signupCredit !== undefined) setSignupCredit(String(d.signupCredit));
       if (d.telegramVerifyCredit !== undefined) setTelegramVerifyCredit(String(d.telegramVerifyCredit));
       if (d.emailVerifyRequired !== undefined) setEmailVerifyRequired(d.emailVerifyRequired);
+      if (d.bankUsername) setBankUsername(d.bankUsername);
+      if (d.bankAccountNumber) setBankAccountNumber(d.bankAccountNumber);
+      if (d.bankActive !== undefined) setBankActive(d.bankActive);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -90,6 +99,10 @@ export default function AdminSettingsPage() {
           signupCredit: parseInt(signupCredit) || 0,
           telegramVerifyCredit: parseInt(telegramVerifyCredit) || 50000,
           emailVerifyRequired,
+          bankUsername,
+          bankPassword: bankPassword || undefined,
+          bankAccountNumber,
+          bankActive,
         }),
       });
       if (res.ok) toast.success("Đã lưu cài đặt!");
@@ -267,6 +280,46 @@ export default function AdminSettingsPage() {
                 <button onClick={() => setEmailVerifyRequired(!emailVerifyRequired)} className={`w-12 h-6 rounded-full transition-all ${emailVerifyRequired ? "bg-indigo-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${emailVerifyRequired ? "translate-x-6" : "translate-x-0.5"}`} /></button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MB Bank Auto-Deposit */}
+      {tab === "bank" && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-6">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-500" /> 🏦 MB Bank Auto-Deposit</h3>
+          <p className="text-xs text-slate-500 mb-4">Tự động check giao dịch MB Bank mỗi 30 giây. Match reference <code>MORAxxxxxx</code> → auto cộng credit.</p>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-slate-700 font-medium text-sm">Tên đăng nhập MB Bank</Label>
+              <Input value={bankUsername} onChange={(e) => setBankUsername(e.target.value)} placeholder="Số điện thoại hoặc username" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+            </div>
+            <div>
+              <Label className="text-slate-700 font-medium text-sm">Mật khẩu MB Bank</Label>
+              <Input type="password" value={bankPassword} onChange={(e) => setBankPassword(e.target.value)} placeholder="Để trống nếu không đổi" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+            </div>
+            <div>
+              <Label className="text-slate-700 font-medium text-sm">Số tài khoản nhận tiền</Label>
+              <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} placeholder="Số tài khoản MB Bank" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+            </div>
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">Tự động check giao dịch</div>
+                  <div className="text-xs text-slate-500">Mỗi 30 giây • Match ref MORAxxxxxx</div>
+                </div>
+                <button onClick={() => setBankActive(!bankActive)} className={`w-12 h-6 rounded-full transition-all ${bankActive ? "bg-green-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${bankActive ? "translate-x-6" : "translate-x-0.5"}`} /></button>
+              </div>
+            </div>
+            {bankActive && (
+              <div className="p-3 bg-green-50 rounded-xl border border-green-200">
+                <div className="text-sm text-green-700">
+                  ✅ Auto-deposit đang hoạt động<br/>
+                  📡 Cron job check mỗi 30 giây<br/>
+                  🔄 Session cache 5 phút (không login lại mỗi lần)
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -367,8 +367,25 @@ model SiteSettings {
   signupCredit    Int      @default(0) // Credit given on signup
   telegramVerifyCredit Int @default(50000) // Credit for telegram verification
   emailVerifyRequired Boolean @default(false) // Require email verification
+  // MB Bank Auto-Deposit
+  bankUsername       String?  // MB Bank login username
+  bankPassword       String?  // MB Bank login password (encrypted)
+  bankAccountNumber  String?  // MB Bank account number to receive
+  bankActive         Boolean  @default(false) // Enable auto-deposit
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
   @@map("site_settings")
+}
+
+model BankSettings {
+  id            String   @id @default(cuid())
+  bankCode      String   @default("MB")
+  username      String
+  password      String
+  accountNumber String
+  isActive      Boolean  @default(true)
+  lastChecked   DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
