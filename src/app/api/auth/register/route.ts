@@ -28,25 +28,31 @@ export async function POST(req: NextRequest) {
       if (referrer) referredByCode = referralCode;
     }
 
+    // Get site settings for credits
+    const settings = await prisma.siteSettings.findFirst();
+    const signupCredit = settings?.signupCredit ?? 0;
+    const referralReward = settings?.referralReward ?? 50000;
+    const referralEnabled = settings?.referralEnabled ?? true;
+
     const user = await prisma.user.create({
       data: {
         name: name || null,
         email,
         password: hashedPassword,
-        creditBalance: 10000,
+        creditBalance: signupCredit,
         referredBy: referredByCode,
       },
     });
 
-    // Give reward to referrer
-    if (referredByCode) {
+    // Give reward to referrer (only if referral enabled)
+    if (referredByCode && referralEnabled) {
       const referrer = await prisma.user.findFirst({ where: { referralCode: referredByCode } });
       if (referrer) {
-        await prisma.user.update({ where: { id: referrer.id }, data: { creditBalance: { increment: 10000 } } });
+        await prisma.user.update({ where: { id: referrer.id }, data: { creditBalance: { increment: referralReward } } });
         await prisma.transaction.create({
           data: {
             userId: referrer.id,
-            amount: 10000,
+            amount: referralReward,
             status: "COMPLETED",
             paymentMethod: "REFERRAL",
             note: `Referral reward from ${email}`,

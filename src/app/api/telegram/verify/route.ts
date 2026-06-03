@@ -3,8 +3,6 @@ import { getCurrentUser } from "@/lib/auth-helpers";
 import { prisma } from "@/lib/prisma";
 import crypto from "crypto";
 
-const TELEGRAM_CREDIT_REWARD = 50000; // 50K credit reward
-
 // POST /api/telegram/verify — generate verification code
 export async function POST(req: NextRequest) {
   try {
@@ -17,6 +15,10 @@ export async function POST(req: NextRequest) {
     if (user.telegramVerified && user.telegramId) {
       return NextResponse.json({ error: "Tài khoản đã liên kết Telegram" }, { status: 400 });
     }
+
+    // Get configurable credit reward
+    const settings = await prisma.siteSettings.findFirst();
+    const creditReward = settings?.telegramVerifyCredit ?? 50000;
 
     // Generate 6-char code
     const code = crypto.randomBytes(3).toString("hex").toUpperCase();

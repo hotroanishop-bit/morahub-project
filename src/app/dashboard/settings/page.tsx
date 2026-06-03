@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { User, Shield, Bell, Key, Save, Eye, EyeOff, AlertTriangle, CreditCard, Play, CheckCircle, XCircle, Loader2, ExternalLink, Zap, Globe, MessageCircle } from "lucide-react";
+import { User, Shield, Bell, Key, Save, Eye, EyeOff, AlertTriangle, CreditCard, Loader2, ExternalLink, Globe, MessageCircle } from "lucide-react";
 
 export default function SettingsPage() {
   const { data: session, update } = useSession();
@@ -27,14 +27,6 @@ export default function SettingsPage() {
     fetch("/api/profile").then((r) => r.json()).then(setProfile).catch(() => {});
   }, []);
 
-  // API Test
-  const [testKey, setTestKey] = useState(user?.role === "ADMIN" ? "" : "");
-  const [testModel, setTestModel] = useState("gpt-4o");
-  const [testPrompt, setTestPrompt] = useState("Xin chào!");
-  const [testResult, setTestResult] = useState<string>("");
-  const [testStatus, setTestStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [testLatency, setTestLatency] = useState(0);
-
   // API Keys
   const [keys, setKeys] = useState<any[]>([]);
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
@@ -50,42 +42,7 @@ export default function SettingsPage() {
     fetch("/api/telegram/verify").then((r) => r.json()).then(setTgStatus).catch(() => {});
   }, []);
 
-  async function testApi() {
-    if (!testKey.trim()) { toast.error("Nhập API key để test"); return; }
-    setTestStatus("loading");
-    setTestResult("");
-    const start = Date.now();
-    try {
-      const res = await fetch("/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${testKey}`,
-        },
-        body: JSON.stringify({
-          model: testModel,
-          messages: [{ role: "user", content: testPrompt }],
-          max_tokens: 100,
-        }),
-      });
-      const data = await res.json();
-      setTestLatency(Date.now() - start);
-      if (res.ok && data.choices) {
-        setTestStatus("success");
-        setTestResult(data.choices[0]?.message?.content || "No response");
-        toast.success("API hoạt động!");
-      } else {
-        setTestStatus("error");
-        setTestResult(data.error?.message || JSON.stringify(data));
-        toast.error("API lỗi!");
-      }
-    } catch (e: any) {
-      setTestStatus("error");
-      setTestResult(e.message || "Connection failed");
-      setTestLatency(Date.now() - start);
-      toast.error("Lỗi kết nối!");
-    }
-  }
+  function copyKey(key: string) { navigator.clipboard.writeText(key); toast.success("Đã copy!"); }
 
   async function saveProfile() {
     setSaving(true);
@@ -125,54 +82,6 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-xl lg:text-2xl font-extrabold text-slate-900 tracking-tight">Cài Đặt</h1>
         <p className="text-slate-500 mt-1 text-sm">Quản lý tài khoản, bảo mật và test API</p>
-      </div>
-
-      {/* API Test */}
-      <div className="bg-white rounded-2xl border border-slate-100 p-6">
-        <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Zap className="w-5 h-5 text-amber-500" /> Test API</h3>
-        <p className="text-xs text-slate-500 mb-4">Gửi request thử để kiểm tra API key có hoạt động không</p>
-        <div className="space-y-3">
-          <div>
-            <Label className="text-slate-700 font-medium text-sm">API Key</Label>
-            <select value={testKey} onChange={(e) => setTestKey(e.target.value)} className="w-full mt-1.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900">
-              <option value="">Chọn key để test...</option>
-              {keys.map((k) => (
-                <option key={k.id} value={k.key}>{k.name} ({k.key.slice(0, 10)}...)</option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label className="text-slate-700 font-medium text-sm">Model</Label>
-              <select value={testModel} onChange={(e) => setTestModel(e.target.value)} className="w-full mt-1.5 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900">
-                {["gpt-4o", "gpt-4o-mini", "claude-3.5-sonnet", "claude-opus-4.6", "deepseek-chat", "deepseek-r1-distill-qwen-32b", "gemini-pro", "gpt-5.2", "gpt-5.3-codex", "kimi-k2.5", "kimi-k2.6"].map((m) => (
-                  <option key={m} value={m}>{m}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label className="text-slate-700 font-medium text-sm">Prompt</Label>
-              <Input value={testPrompt} onChange={(e) => setTestPrompt(e.target.value)} placeholder="Nhập prompt test..." className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-10 text-sm" />
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={testApi} disabled={testStatus === "loading" || !testKey} className="bg-gradient-to-r from-amber-500 to-orange-500 text-white rounded-xl font-semibold">
-              {testStatus === "loading" ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Play className="w-4 h-4 mr-2" />}
-              {testStatus === "loading" ? "Đang test..." : "Test API"}
-            </Button>
-            {testLatency > 0 && <span className="text-xs text-slate-500">{testLatency}ms</span>}
-          </div>
-          {testResult && (
-            <div className={`p-4 rounded-xl text-sm ${testStatus === "success" ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
-              <div className="flex items-center gap-2 mb-2">
-                {testStatus === "success" ? <CheckCircle className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-                <span className="font-semibold">{testStatus === "success" ? "Thành công!" : "Lỗi!"}</span>
-                <span className="text-xs ml-auto">{testLatency}ms</span>
-              </div>
-              <div className="font-mono text-xs bg-white/50 p-2 rounded-lg break-all">{testResult}</div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Quick Links */}

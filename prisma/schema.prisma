@@ -360,6 +360,13 @@ model SiteSettings {
   notifyNewUser   Boolean  @default(true)
   notifyDeposit   Boolean  @default(true)
   notifyTicket    Boolean  @default(true)
+  // Referral System
+  referralEnabled Boolean  @default(true)
+  referralReward  Int      @default(50000) // Credit reward for referrer
+  // Signup & Verification
+  signupCredit    Int      @default(0) // Credit given on signup
+  telegramVerifyCredit Int @default(50000) // Credit for telegram verification
+  emailVerifyRequired Boolean @default(false) // Require email verification
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 

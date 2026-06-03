@@ -38,6 +38,13 @@ export default function AdminSettingsPage() {
   const [notifyDeposit, setNotifyDeposit] = useState(true);
   const [notifyTicket, setNotifyTicket] = useState(true);
 
+  // Referral & Verification settings
+  const [referralEnabled, setReferralEnabled] = useState(true);
+  const [referralReward, setReferralReward] = useState("50000");
+  const [signupCredit, setSignupCredit] = useState("0");
+  const [telegramVerifyCredit, setTelegramVerifyCredit] = useState("50000");
+  const [emailVerifyRequired, setEmailVerifyRequired] = useState(false);
+
   // API Test
   const [testStatus, setTestStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [testResult, setTestResult] = useState("");
@@ -60,6 +67,11 @@ export default function AdminSettingsPage() {
       if (d.ckeyBaseUrl) setCkeyBaseUrl(d.ckeyBaseUrl);
       if (d.defaultRateLimit) setDefaultRateLimit(String(d.defaultRateLimit));
       if (d.defaultCredits) setDefaultCredits(String(d.defaultCredits));
+      if (d.referralEnabled !== undefined) setReferralEnabled(d.referralEnabled);
+      if (d.referralReward) setReferralReward(String(d.referralReward));
+      if (d.signupCredit !== undefined) setSignupCredit(String(d.signupCredit));
+      if (d.telegramVerifyCredit !== undefined) setTelegramVerifyCredit(String(d.telegramVerifyCredit));
+      if (d.emailVerifyRequired !== undefined) setEmailVerifyRequired(d.emailVerifyRequired);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -74,6 +86,10 @@ export default function AdminSettingsPage() {
           siteName, siteDesc, siteUrl, supportEmail, supportTelegram,
           ckeyApiKey, ckeyBaseUrl, defaultRateLimit: parseInt(defaultRateLimit) || 30, defaultCredits: parseInt(defaultCredits) || 10000,
           notifyNewUser, notifyDeposit, notifyTicket,
+          referralEnabled, referralReward: parseInt(referralReward) || 50000,
+          signupCredit: parseInt(signupCredit) || 0,
+          telegramVerifyCredit: parseInt(telegramVerifyCredit) || 50000,
+          emailVerifyRequired,
         }),
       });
       if (res.ok) toast.success("Đã lưu cài đặt!");
@@ -105,6 +121,7 @@ export default function AdminSettingsPage() {
     { id: "api", label: "API Backend", icon: Zap },
     { id: "defaults", label: "Mặc định", icon: CreditCard },
     { id: "notify", label: "Thông báo", icon: Bell },
+    { id: "rewards", label: "Thưởng & Giới thiệu", icon: CreditCard },
   ];
 
   return (
@@ -212,6 +229,44 @@ export default function AdminSettingsPage() {
                 <button onClick={() => n.set(!n.val)} className={`w-12 h-6 rounded-full transition-all ${n.val ? "bg-indigo-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${n.val ? "translate-x-6" : "translate-x-0.5"}`} /></button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Rewards & Referral Settings */}
+      {tab === "rewards" && (
+        <div className="bg-white rounded-2xl border border-slate-100 p-6">
+          <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><CreditCard className="w-5 h-5 text-purple-500" /> Thưởng & Giới Thiệu</h3>
+          <div className="space-y-4">
+            {/* Referral */}
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <div className="flex items-center justify-between mb-3">
+                <div><div className="text-sm font-medium text-slate-900">Tính năng Giới thiệu bạn bè</div><div className="text-xs text-slate-500">Bật/tắt hệ thống referral</div></div>
+                <button onClick={() => setReferralEnabled(!referralEnabled)} className={`w-12 h-6 rounded-full transition-all ${referralEnabled ? "bg-indigo-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${referralEnabled ? "translate-x-6" : "translate-x-0.5"}`} /></button>
+              </div>
+              {referralEnabled && (
+                <div><Label className="text-slate-700 font-medium text-sm">Thưởng cho người giới thiệu (VND)</Label><Input type="number" value={referralReward} onChange={(e) => setReferralReward(e.target.value)} className="bg-white border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" /></div>
+              )}
+            </div>
+            {/* Signup Credit */}
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <Label className="text-slate-700 font-medium text-sm">Credit tặng khi đăng ký tài khoản mới</Label>
+              <Input type="number" value={signupCredit} onChange={(e) => setSignupCredit(e.target.value)} className="bg-white border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+              <p className="text-xs text-slate-500 mt-1">Đặt 0 nếu không muốn tặng credit khi đăng ký</p>
+            </div>
+            {/* Telegram Verify Credit */}
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <Label className="text-slate-700 font-medium text-sm">Credit tặng khi xác minh Telegram</Label>
+              <Input type="number" value={telegramVerifyCredit} onChange={(e) => setTelegramVerifyCredit(e.target.value)} className="bg-white border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+              <p className="text-xs text-slate-500 mt-1">User cần liên kết Telegram để nhận thưởng</p>
+            </div>
+            {/* Email Verify */}
+            <div className="p-4 bg-slate-50 rounded-xl">
+              <div className="flex items-center justify-between">
+                <div><div className="text-sm font-medium text-slate-900">Yêu cầu xác minh email</div><div className="text-xs text-slate-500">User phải xác minh email mới sử dụng được</div></div>
+                <button onClick={() => setEmailVerifyRequired(!emailVerifyRequired)} className={`w-12 h-6 rounded-full transition-all ${emailVerifyRequired ? "bg-indigo-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${emailVerifyRequired ? "translate-x-6" : "translate-x-0.5"}`} /></button>
+              </div>
+            </div>
           </div>
         </div>
       )}
