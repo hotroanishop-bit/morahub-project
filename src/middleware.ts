@@ -13,7 +13,7 @@ export async function middleware(request: NextRequest) {
   const isV1 = pathname.startsWith("/v1/");
   const isApiV1 = pathname.startsWith("/api/v1/");
   const isAuthApi = pathname.startsWith("/api/auth");
-  const isPublicApi = pathname.startsWith("/api/plans") || pathname.startsWith("/api/models") || pathname.startsWith("/api/session");
+  const isPublicApi = pathname.startsWith("/api/plans") || pathname.startsWith("/api/models") || pathname.startsWith("/api/session") || pathname.startsWith("/api/telegram/webhook");
 
   if (isV1 || isApiV1 || isAuthApi || isPublicApi) {
     return NextResponse.next();
