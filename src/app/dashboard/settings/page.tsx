@@ -36,10 +36,14 @@ export default function SettingsPage() {
   const [tgCode, setTgCode] = useState("");
   const [tgLoading, setTgLoading] = useState(false);
   const [tgCodeGenerated, setTgCodeGenerated] = useState(false);
+  const [tgCredit, setTgCredit] = useState(50000);
 
   useEffect(() => {
     fetch("/api/keys").then((r) => r.json()).then((d) => setKeys(d.keys || [])).catch(() => {});
     fetch("/api/telegram/verify").then((r) => r.json()).then(setTgStatus).catch(() => {});
+    fetch("/api/admin/settings").then((r) => r.json()).then((d) => {
+      if (d.telegramVerifyCredit) setTgCredit(d.telegramVerifyCredit);
+    }).catch(() => {});
   }, []);
 
   async function saveProfile() {
@@ -99,7 +103,7 @@ export default function SettingsPage() {
       {/* Telegram Verification */}
       <div className="bg-white rounded-2xl border border-slate-100 p-6">
         <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2"><MessageCircle className="w-5 h-5 text-blue-500" /> Liên Kết Telegram</h3>
-        <p className="text-xs text-slate-500 mb-4">Liên kết Telegram để nhận <b className="text-emerald-600">+50,000đ credit</b> miễn phí và quản lý tài khoản qua bot</p>
+        <p className="text-xs text-slate-500 mb-4">Liên kết Telegram để nhận <b className="text-emerald-600">+{Number(tgCredit || 50000).toLocaleString("vi-VN")}đ credit</b> miễn phí và quản lý tài khoản qua bot</p>
         
         {tgStatus?.telegramVerified ? (
           <div className="space-y-3">
@@ -124,7 +128,7 @@ export default function SettingsPage() {
             <div className="p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div className="text-sm font-medium text-blue-800 mb-2">Cách liên kết:</div>
               <ol className="text-xs text-blue-700 space-y-1 list-decimal list-inside">
-                <li>Mở Telegram, tìm bot <b>@MoraHubBot</b></li>
+                <li>Mở Telegram, tìm bot <b>@MoraSupport_bot</b></li>
                 <li>Nhấn <code>/start</code> để bắt đầu</li>
                 <li>Nhấn nút bên dưới để lấy mã xác minh</li>
                 <li>Gửi mã cho bot: <code>/verify MÃ</code></li>
