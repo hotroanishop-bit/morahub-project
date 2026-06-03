@@ -7,6 +7,7 @@ import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, L
 import ThemeToggle from "@/components/theme-toggle";
 import AnnouncementBanner from "@/components/announcement-banner";
 import { useState } from "react";
+import { useSession } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "Tổng Quan", icon: LayoutDashboard },
@@ -30,6 +31,9 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const isAdmin = user?.role === "ADMIN";
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
@@ -57,7 +61,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="p-3 border-t border-slate-100 space-y-0.5">
-          <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
+          {isAdmin && (
+            <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
+          )}
           <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 w-full font-medium"><LogOut className="w-[18px] h-[18px]" />Đăng Xuất</button>
         </div>
       </aside>
