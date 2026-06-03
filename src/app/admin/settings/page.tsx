@@ -318,6 +318,17 @@ export default function AdminSettingsPage() {
                   📡 Cron job check mỗi 30 giây<br/>
                   🔄 Session cache 5 phút (không login lại mỗi lần)
                 </div>
+                <button onClick={async () => {
+                  const res = await fetch("/api/bank/balance");
+                  const data = await res.json();
+                  if (data.ok) {
+                    alert(`💰 Số dư MB Bank: ${Number(data.totalBalance).toLocaleString("vi-VN")} ${data.currency}`);
+                  } else {
+                    alert(data.error || "Lỗi lấy số dư");
+                  }
+                }} className="mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition">
+                  💰 Xem số dư MB Bank
+                </button>
               </div>
             )}
           </div>
