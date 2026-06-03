@@ -4,12 +4,11 @@
  * Matches reference codes and auto-credits users
  */
 
-import { MB } from "mbbank";
 import { prisma } from "./prisma";
 import { sendTelegramMessage } from "./telegram-bot";
 
 // Cache MB session
-let mbClient: MB | null = null;
+let mbClient: any = null;
 let lastLogin = 0;
 const SESSION_TTL = 5 * 60 * 1000; // 5 minutes
 
@@ -25,6 +24,7 @@ async function getMBClient() {
   }
 
   try {
+    const { MB } = await import("mbbank");
     mbClient = new MB({
       username: settings.bankUsername,
       password: settings.bankPassword,
