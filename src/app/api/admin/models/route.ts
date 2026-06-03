@@ -3,9 +3,13 @@ import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { logAudit } from "@/lib/audit";
 
-// GET all models
+// GET all models (admin only)
 export async function GET() {
   try {
+    const session = await auth();
+    if (!session?.user || (session.user as any).role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const models = await prisma.aiModel.findMany({ orderBy: { createdAt: "desc" } });
     return NextResponse.json({ models });
   } catch (error) {
