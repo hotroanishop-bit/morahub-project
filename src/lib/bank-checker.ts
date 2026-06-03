@@ -24,6 +24,10 @@ async function getMBClient() {
   }
 
   try {
+    // mbbank sets globalThis.location which crashes SSR - patch it first
+    if (typeof globalThis.location === "undefined") {
+      (globalThis as any).location = {};
+    }
     const { MB } = await import("mbbank");
     mbClient = new MB({
       username: settings.bankUsername,

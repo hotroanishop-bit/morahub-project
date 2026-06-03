@@ -16,6 +16,10 @@ export async function GET() {
     }
 
     // Dynamic import to avoid sharp/wasm issues at build time
+    // mbbank sets globalThis.location which crashes SSR - patch it first
+    if (typeof globalThis.location === "undefined") {
+      (globalThis as any).location = {};
+    }
     const { MB } = await import("mbbank");
     const mb = new MB({
       username: settings.bankUsername,
