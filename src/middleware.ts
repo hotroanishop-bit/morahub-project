@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Public routes
   const publicRoutes = ["/", "/login", "/register"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
-  // API routes - /v1/* và /api/* đều cho qua
+  // API routes - allow through
+  const isApi = pathname.startsWith("/api/");
   const isV1 = pathname.startsWith("/v1/");
-  const isApiV1 = pathname.startsWith("/api/v1/");
-  const isAuthApi = pathname.startsWith("/api/auth");
-  const isPublicApi = pathname.startsWith("/api/plans") || pathname.startsWith("/api/models") || pathname.startsWith("/api/session") || pathname.startsWith("/api/telegram/webhook");
 
-  if (isV1 || isApiV1 || isAuthApi || isPublicApi) {
+  if (isApi || isV1) {
     return NextResponse.next();
   }
 
@@ -32,18 +29,6 @@ export async function middleware(request: NextRequest) {
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
-  }
-
-  // Admin route protection - check role from JWT
-  const isAdminRoute = pathname.startsWith("/admin");
-  if (isAdminRoute) {
-    const token = await getToken({
-      req: request,
-      secret: process.env.AUTH_SECRET,
-    });
-    if (!token || token.role !== "ADMIN") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
   }
 
   return NextResponse.next();
