@@ -47,10 +47,11 @@ export async function handleTelegramUpdate(update: any) {
   const text = message.text?.trim() || "";
   const userId = update.callback_query?.from?.id || message.from?.id;
 
-  // Find user by telegram ID or email
+  // Find user by telegram ID
   const user = await prisma.user.findFirst({
     where: {
       OR: [
+        { telegramId: String(userId) },
         { email: `${userId}@telegram.user` },
       ],
     },
