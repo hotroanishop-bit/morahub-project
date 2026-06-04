@@ -1,66 +1,106 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
-import { logAudit } from "@/lib/audit";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
-// GET all transactions (admin only)
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const url = new URL(req.url);
+    const status = url.searchParams.get("status") || "all";
+    const search = url.searchParams.get("search") || "";
+
+    const where: any = {};
+    if (status !== "all") where.status = status;
+    if (search) {
+      where.OR = [
+        { reference: { contains: search } },
+        { user: { email: { contains: search } } },
+        { user: { name: { contains: search } } },
+      ];
     }
 
     const transactions = await prisma.transaction.findMany({
-      include: { user: { select: { id: true, name: true, email: true } } },
+      where,
+      include: { user: { select: { name: true, email: true } } },
       orderBy: { createdAt: "desc" },
       take: 100,
     });
 
     return NextResponse.json({ transactions });
   } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }
 }
 
-// PATCH update transaction status (admin only)
-export async function PATCH(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const session = await auth();
-    if (!session?.user || (session.user as any).role !== "ADMIN") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { transactionId, status, adminNote } = await req.json();
-    if (!transactionId) return NextResponse.json({ error: "transactionId required" }, { status: 400 });
+    const { transactionId, action, userId, amount } = await req.json();
 
-    const tx = await prisma.transaction.findUnique({ where: { id: transactionId } });
-    if (!tx) return NextResponse.json({ error: "Transaction not found" }, { status: 404 });
+    if (action === "refund" && transactionId) {
+      const tx = await prisma.transaction.findUnique({ where: { id: transactionId } });
+      if (!tx) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-    // If completing a pending top-up, add credits to user
-    if (status === "COMPLETED" && tx.status === "PENDING") {
+      // Update transaction status
+      await prisma.transaction.update({
+        where: { id: transactionId },
+        data: { status: "REFUNDED" },
+      });
+
+      // Deduct balance
       await prisma.user.update({
         where: { id: tx.userId },
-        data: { creditBalance: { increment: tx.amount } },
+        data: { creditBalance: { decrement: Number(tx.amount) } },
       });
+
+      // Log
+      await prisma.creditLog.create({
+        data: {
+          userId: tx.userId,
+          transactionId: tx.id,
+          amount: -Number(tx.amount),
+          balanceBefore: 0,
+          balanceAfter: 0,
+          action: "DEBIT",
+          reason: `Refund: ${tx.reference}`,
+          actor: "ADMIN",
+        },
+      });
+
+      return NextResponse.json({ success: true });
     }
 
-    const updated = await prisma.transaction.update({
-      where: { id: transactionId },
-      data: { status, adminNote: adminNote || undefined },
-    });
+    if (action === "credit" && userId && amount) {
+      const targetUser = await prisma.user.findUnique({ where: { id: userId } });
+      if (!targetUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    // Audit log
-    logAudit({
-      userId: (session.user as any).id,
-      action: status === "COMPLETED" ? "APPROVE_DEPOSIT" : "REJECT_DEPOSIT",
-      entity: "Transaction",
-      entityId: transactionId,
-      details: { amount: tx.amount, userId: tx.userId, status },
-    });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { creditBalance: { increment: amount } },
+      });
 
-    return NextResponse.json(updated);
+      await prisma.creditLog.create({
+        data: {
+          userId,
+          transactionId: "MANUAL-" + Date.now(),
+          amount,
+          balanceBefore: Number(targetUser.creditBalance),
+          balanceAfter: Number(targetUser.creditBalance) + amount,
+          action: "CREDIT",
+          reason: "Manual credit by admin",
+          actor: "ADMIN",
+        },
+      });
+
+      return NextResponse.json({ success: true });
+    }
+
+    return NextResponse.json({ error: "Invalid action" }, { status: 400 });
   } catch (error) {
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }
 }
