@@ -115,7 +115,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
-              <p className="text-xs text-slate-500">🔒 Telegram đã được liên kết. Nếu cần hủy, vui lòng liên hệ admin.</p>
+              <p className="text-xs text-slate-500">🔒 Telegram đã được liên kết. Liên hệ admin nếu cần hỗ trợ.</p>
             </div>
           </div>
         ) : (
