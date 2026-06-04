@@ -114,14 +114,9 @@ export default function SettingsPage() {
                 <div className="text-xs text-emerald-600">Telegram ID: {tgStatus.telegramId}</div>
               </div>
             </div>
-            <Button variant="outline" size="sm" className="rounded-xl text-red-600 border-red-200 hover:bg-red-50"
-              onClick={async () => {
-                if (!confirm("Hủy liên kết Telegram?")) return;
-                const res = await fetch("/api/telegram/verify", { method: "DELETE" });
-                if (res.ok) { setTgStatus({ telegramVerified: false, telegramId: null }); toast.success("Đã hủy liên kết"); }
-              }}>
-              Hủy liên kết
-            </Button>
+            <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-500">🔒 Telegram đã được liên kết. Nếu cần hủy, vui lòng liên hệ admin.</p>
+            </div>
           </div>
         ) : (
           <div className="space-y-3">

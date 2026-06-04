@@ -62,11 +62,20 @@ export async function GET() {
 }
 
 // DELETE /api/telegram/verify — unlink telegram
+// DISABLED: Users cannot unlink Telegram if already linked
 export async function DELETE() {
   try {
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Chưa đăng nhập" }, { status: 401 });
+    }
+
+    // Block unlink if already linked
+    if (user.telegramId && user.telegramVerified) {
+      return NextResponse.json({
+        error: "Không thể hủy liên kết Telegram. Vui lòng liên hệ admin.",
+        blocked: true,
+      }, { status: 403 });
     }
 
     await prisma.user.update({
