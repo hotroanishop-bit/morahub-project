@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Wallet, Building2, Copy, CheckCircle, Clock, QrCode, ArrowLeft, RefreshCw } from "lucide-react";
@@ -10,9 +11,12 @@ interface SiteSettings { bankName: string; bankBin: string; accountNo: string; a
 
 const QUICK_AMOUNTS = [50000, 100000, 200000, 500000, 1000000, 2000000];
 
-export default function TopUpPage() {
+function TopUpContent() {
   const { data: session } = useSession();
   const user = session?.user as any;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const refParam = searchParams.get("ref");
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [amount, setAmount] = useState(100000);
   const [customAmount, setCustomAmount] = useState("");
@@ -21,21 +25,35 @@ export default function TopUpPage() {
   const [qrUrl, setQrUrl] = useState("");
   const [history, setHistory] = useState<any[]>([]);
 
+  // Load existing transaction from ?ref=xxx
   useEffect(() => {
     fetch("/api/admin/settings").then((r) => r.json()).then((d) => { if (d.accountNo) setSettings(d); }).catch(() => {});
-    fetch("/api/top-up").then((r) => r.json()).then((d) => setHistory(Array.isArray(d) ? d : d.transactions || [])).catch(() => {});
-  }, []);
+    fetch("/api/top-up").then((r) => r.json()).then((d) => {
+      const txs = Array.isArray(d) ? d : d.transactions || [];
+      setHistory(txs);
+      // If ref param exists, find that transaction
+      if (refParam) {
+        const found = txs.find((t: any) => t.reference === refParam);
+        if (found && (found.status === "PENDING" || found.status === "COMPLETED" || found.status === "FAILED")) {
+          setTransaction(found);
+        }
+      }
+    }).catch(() => {});
+  }, [refParam]);
 
   const finalAmount = customAmount ? parseInt(customAmount) || 0 : amount;
 
   useEffect(() => {
     if (transaction && settings?.bankBin && settings?.accountNo) {
-      // Use transaction reference as payment content
       const note = transaction.reference || "MORA";
       const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.accountNo}-compact2.png?amount=${transaction.amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(settings.accountName || "HUYNH THE NGOC")}`;
       setQrUrl(url);
+      // Update URL with ref so page can be reloaded
+      if (transaction.reference && !refParam) {
+        router.replace(`/dashboard/top-up?ref=${transaction.reference}`, { scroll: false });
+      }
     }
-  }, [transaction, settings]);
+  }, [transaction, settings, refParam, router]);
 
   function copyText(text: string, label: string) {
     navigator.clipboard.writeText(text);
@@ -56,6 +74,8 @@ export default function TopUpPage() {
       if (data.error) { toast.error(data.error); return; }
       setTransaction(data.transaction);
       toast.success("Tạo lệnh nạp tiền thành công!");
+      // Redirect to ?ref=xxx so QR persists on reload
+      router.replace(`/dashboard/top-up?ref=${data.transaction.reference}`, { scroll: false });
     } catch { toast.error("Lỗi kết nối"); }
     setSubmitting(false);
   }
@@ -65,7 +85,8 @@ export default function TopUpPage() {
     try {
       const res = await fetch("/api/top-up");
       const data = await res.json();
-      const tx = Array.isArray(data) ? data.find((t: any) => t.id === transaction.id) : null;
+      const txs = Array.isArray(data) ? data : data.transactions || [];
+      const tx = txs.find((t: any) => t.id === transaction.id);
       if (tx?.status === "COMPLETED") {
         setTransaction({ ...transaction, status: "COMPLETED" });
         toast.success("Nạp tiền thành công!");
@@ -84,6 +105,27 @@ export default function TopUpPage() {
     return m[s] || { label: s, color: "text-slate-600 bg-slate-50" };
   }
 
+  // Payment failed / expired
+  if (transaction?.status === "FAILED") {
+    return (
+      <div className="max-w-lg mx-auto text-center py-12">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto mb-4">
+          <span className="text-3xl">⏰</span>
+        </div>
+        <h2 className="text-2xl font-extrabold text-slate-900 mb-2">Giao Dịch Hết Hạn</h2>
+        <p className="text-slate-500 mb-4">Mã CK <span className="font-mono font-semibold">{transaction.reference}</span> đã hết hạn (15 phút)</p>
+        <div className="bg-red-50 rounded-2xl border border-red-100 p-6 mb-6">
+          <p className="text-sm text-red-600 mb-2">Nếu bạn đã chuyển khoản, vui lòng liên hệ hỗ trợ</p>
+          <p className="text-2xl font-extrabold text-red-600">{transaction.amount?.toLocaleString("vi-VN")}đ</p>
+        </div>
+        <div className="flex gap-3 justify-center">
+          <a href={`/dashboard/support?hotro=${transaction.reference}`} className="px-6 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl font-semibold text-sm">💵 Hỗ Trợ Nạp Tiền</a>
+          <Button onClick={() => { setTransaction(null); router.replace("/dashboard/top-up", { scroll: false }); }} variant="outline" className="rounded-xl">Nạp Lại</Button>
+        </div>
+      </div>
+    );
+  }
+
   // Payment success
   if (transaction?.status === "COMPLETED") {
     return (
@@ -97,7 +139,7 @@ export default function TopUpPage() {
           <div className="text-3xl font-extrabold text-emerald-600">{transaction.amount?.toLocaleString("vi-VN")}đ</div>
         </div>
         <div className="flex gap-3 justify-center">
-          <Button onClick={() => { setTransaction(null); fetch("/api/admin/settings").then(r => r.json()).then(d => setSettings(d)); }} className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl">Nạp Thêm</Button>
+          <Button onClick={() => { setTransaction(null); router.replace("/dashboard/top-up", { scroll: false }); fetch("/api/admin/settings").then(r => r.json()).then(d => setSettings(d)); }} className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl">Nạp Thêm</Button>
           <a href="/dashboard" className="px-6 py-3 bg-slate-100 text-slate-700 rounded-xl font-semibold text-sm hover:bg-slate-200 transition-colors">Về Dashboard</a>
         </div>
       </div>
@@ -108,7 +150,7 @@ export default function TopUpPage() {
   if (transaction) {
     return (
       <div className="max-w-lg mx-auto">
-        <button onClick={() => setTransaction(null)} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 font-medium mb-4">
+        <button onClick={() => { setTransaction(null); router.replace("/dashboard/top-up", { scroll: false }); }} className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-900 font-medium mb-4">
           <ArrowLeft className="w-4 h-4" /> Quay lại
         </button>
 
@@ -157,10 +199,18 @@ export default function TopUpPage() {
           <p className="text-xs text-slate-400 mt-4">Quét QR hoặc chuyển khoản đúng nội dung. Hệ thống tự động xử lý trong 1-5 phút.</p>
 
           <div className="flex gap-3 mt-4">
-            <Button onClick={checkStatus} variant="outline" className="flex-1 rounded-xl border-indigo-200 text-indigo-600 hover:bg-indigo-50">
-              <RefreshCw className="w-4 h-4 mr-2" /> Kiểm Tra
-            </Button>
-            <Button onClick={() => setTransaction(null)} variant="outline" className="flex-1 rounded-xl">Hủy</Button>
+            <a href={`/dashboard/support?hotro=${transaction.reference}`} className="flex-1">
+              <Button variant="outline" className="w-full rounded-xl border-indigo-200 text-indigo-600 hover:bg-indigo-50">
+                💵 Hỗ Trợ Nạp Tiền
+              </Button>
+            </a>
+            <Button onClick={async () => {
+              try {
+                await fetch("/api/top-up/cancel", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactionId: transaction.id }) });
+              } catch {}
+              setTransaction(null);
+              router.replace("/dashboard/top-up", { scroll: false });
+            }} variant="outline" className="flex-1 rounded-xl text-red-500 border-red-200 hover:bg-red-50">Hủy</Button>
           </div>
         </div>
       </div>
@@ -221,10 +271,10 @@ export default function TopUpPage() {
               {history.slice(0, 20).map((t) => {
                 const st = formatStatus(t.status);
                 return (
-                  <div key={t.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+                  <div key={t.id} className={`flex items-center justify-between p-3 bg-slate-50 rounded-xl transition-colors ${t.status === "PENDING" || t.status === "FAILED" ? "cursor-pointer hover:bg-slate-100" : ""}`} onClick={() => { if (t.status === "PENDING" || t.status === "FAILED") { router.push(`/dashboard/top-up?ref=${t.reference}`); } }}>
                     <div>
                       <div className="text-sm font-semibold text-slate-900">{t.amount?.toLocaleString("vi-VN")}đ</div>
-                      <div className="text-xs text-slate-400">{new Date(t.createdAt).toLocaleString("vi-VN")}</div>
+                      <div className="text-xs text-slate-400">{t.reference} • {new Date(t.createdAt).toLocaleString("vi-VN")}</div>
                     </div>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${st.color}`}>{st.label}</span>
                   </div>
@@ -235,5 +285,13 @@ export default function TopUpPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function TopUpPage() {
+  return (
+    <Suspense fallback={<div className="flex items-center justify-center py-20"><RefreshCw className="w-6 h-6 animate-spin text-slate-400" /></div>}>
+      <TopUpContent />
+    </Suspense>
   );
 }

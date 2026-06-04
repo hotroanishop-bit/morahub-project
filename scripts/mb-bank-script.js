@@ -43,8 +43,12 @@ async function main() {
         const balance = await mb.getBalance();
         console.log(JSON.stringify(balance));
       } else if (action === "transactions") {
-        const txs = await mb.getTransactions(argsJson);
-        console.log(JSON.stringify(txs));
+        const txs = await mb.getTransactionsHistory({
+          accountNumber: argsJson.accountNumber || argsJson.accountNo,
+          fromDate: argsJson.fromDate,
+          toDate: argsJson.toDate,
+        });
+        console.log(JSON.stringify(txs || []));
       }
     } else {
       console.error("Unknown action:", action);

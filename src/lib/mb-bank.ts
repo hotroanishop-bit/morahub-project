@@ -69,12 +69,20 @@ export async function checkDeposits() {
     const settings = await prisma.siteSettings.findFirst();
     if (!settings?.bankUsername || !settings?.bankActive) return;
 
+    // Auto-fail expired pending transactions (>15 min)
+    const expiryTime = new Date(Date.now() - 15 * 60 * 1000);
+    const expired = await prisma.transaction.updateMany({
+      where: { status: "PENDING", paymentMethod: "BANKING", createdAt: { lt: expiryTime } },
+      data: { status: "FAILED" },
+    });
+    if (expired.count > 0) console.log(`[Auto-Deposit] Expired ${expired.count} old transactions`);
+
     const now = new Date();
     const fromDate = new Date(now.getTime() - 60 * 60 * 1000);
     const pad = (n: number) => n.toString().padStart(2, "0");
 
     const transactions = await runMBBank("transactions", {
-      accountNo: settings.bankAccountNumber || settings.bankUsername,
+      accountNumber: settings.bankAccountNumber || settings.bankUsername,
       fromDate: `${pad(fromDate.getDate())}/${pad(fromDate.getMonth() + 1)}/${fromDate.getFullYear()}`,
       toDate: `${pad(now.getDate())}/${pad(now.getMonth() + 1)}/${now.getFullYear()}`,
     });
@@ -91,8 +99,9 @@ export async function checkDeposits() {
 
     for (const tx of pendingDeposits) {
       const match = transactions.find((bankTx: any) => {
-        const desc = (bankTx.description || "").toUpperCase();
-        return desc.includes(tx.reference || "") && Number(bankTx.creditAmount) >= Number(tx.amount);
+        const desc = (bankTx.transactionDesc || bankTx.description || "").toUpperCase();
+        const descNoSpace = desc.replace(/\s/g, "");
+        return (desc.includes(tx.reference || "") || descNoSpace.includes(tx.reference || "")) && Number(bankTx.creditAmount) >= Number(tx.amount);
       });
 
       if (match) {

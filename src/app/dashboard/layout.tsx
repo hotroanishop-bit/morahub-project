@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import AnnouncementBanner from "@/components/announcement-banner";
 import { useState } from "react";
@@ -16,10 +16,12 @@ const navItems = [
   { href: "/dashboard/models", label: "Models & Giá", icon: Cpu },
   { href: "/dashboard/usage", label: "Sử Dụng", icon: BarChart3 },
   { href: "/dashboard/top-up", label: "Nạp Tiền", icon: Wallet },
+  { href: "/dashboard/support", label: "Hỗ Trợ Nạp Tiền", icon: Wallet },
   { href: "/dashboard/transactions", label: "Lịch Sử GD", icon: ArrowLeftRight },
   { href: "/dashboard/subscription", label: "Gói Cước", icon: Package },
   { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
   { href: "/dashboard/tickets", label: "Hỗ Trợ", icon: Headphones },
+  { href: "/dashboard/ticket-history", label: "Lịch sử hỗ trợ", icon: Clock },
   { href: "/dashboard/api-docs", label: "API Docs", icon: FileText },
   { href: "/dashboard/playground", label: "Playground", icon: Play },
   { href: "/dashboard/cost-alerts", label: "Cảnh Báo Chi Phí", icon: Bell },
@@ -62,7 +64,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="p-3 border-t border-slate-100 space-y-0.5">
           {isAdmin && (
-            <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
+            <>
+              <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
+              <Link href="/dashboard/admin/tickets" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-orange-600 hover:bg-orange-50 w-full font-medium"><MessageSquare className="w-[18px] h-[18px]" />🎫 Hỗ trợ</Link>
+            </>
           )}
           <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 w-full font-medium"><LogOut className="w-[18px] h-[18px]" />Đăng Xuất</button>
         </div>

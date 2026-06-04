@@ -14,8 +14,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Số tiền tối thiểu 10,000đ" }, { status: 400 });
     }
 
-    // Short reference: MORA + 6 digits
-    const ref = `MORA${Date.now().toString().slice(-6)}`;
+    // Random alphanumeric reference: MORA + 8 chars
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let rand = '';
+    for (let i = 0; i < 8; i++) rand += chars[Math.floor(Math.random() * chars.length)];
+    const ref = `MORA${rand}`;
 
     const transaction = await prisma.transaction.create({
       data: {

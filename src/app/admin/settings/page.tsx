@@ -46,9 +46,9 @@ export default function AdminSettingsPage() {
   const [emailVerifyRequired, setEmailVerifyRequired] = useState(false);
 
   // MB Bank Auto-Deposit
-  const [bankUsername, setBankUsername] = useState("0348747503");
+  const [bankUsername, setBankUsername] = useState("");
   const [bankPassword, setBankPassword] = useState("");
-  const [bankAccountNumber, setBankAccountNumber] = useState("148393");
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
   const [bankActive, setBankActive] = useState(true);
 
   // API Test

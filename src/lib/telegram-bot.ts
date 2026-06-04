@@ -351,14 +351,197 @@ export async function handleTelegramUpdate(update: any) {
   // ========== Deposit Support (Nạp tiền) ==========
   if (text === "💵 Nạp tiền") {
     await sendTelegramMessage(chatId,
-      `💵 <b>Hỗ trợ nạp tiền</b>\n\n` +
-      `Tính năng đang được phát triển! 🚧\n\n` +
-      `Hiện tại bạn có thể nạp tiền tại:\n` +
-      `<a href="${SITE_URL}/dashboard/top-up">morahub.online/top-up</a>\n\n` +
-      `💬 Nếu cần hỗ trợ nạp tiền, gõ nội dung để tạo ticket.`,
-      { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+      `👋 <b>Xin chào!</b>
+
+` +
+      `Tôi là <b>Mora Assistant</b> — Hệ thống hỗ trợ giao dịch tự động 24/7 của MoraHub.
+
+` +
+      `Vui lòng chọn vấn đề bạn đang gặp phải:`,
+      { parse_mode: "HTML", reply_markup: {
+        inline_keyboard: [
+          [{ text: "💵 Nạp tiền đúng ND nhưng chưa nhận được tiền", callback_data: "support_correct" }],
+          [{ text: "📝 Chuyển khoản sai nội dung", callback_data: "support_wrong_content" }],
+          [{ text: "💰 Chuyển khoản sai số tiền", callback_data: "support_wrong_amount" }],
+          [{ text: "⚠️ Sai nội dung và sai số tiền", callback_data: "support_wrong_both" }],
+          [{ text: "💸 CK dưới 10.000 VNĐ", callback_data: "support_under10k" }],
+          [{ text: "➕ Bổ sung thông tin khác", callback_data: "support_other_info" }],
+        ]
+      }}
     );
     return;
+  }
+
+  // ========== Support Callbacks ==========
+  if (update.callback_query) {
+    const data = update.callback_query.data;
+    const cbChatId = update.callback_query.message?.chat?.id || chatId;
+    
+    if (data === "support_under10k") {
+      await sendTelegramMessage(cbChatId,
+        `❌ <b>Rất tiếc.</b>
+
+Theo quy định của MoraHub, các giao dịch dưới 10.000 VNĐ sẽ không được hỗ trợ xử lý thủ công.
+
+Vui lòng thực hiện giao dịch mới với số tiền từ 10.000 VNĐ trở lên.
+
+Xin cảm ơn.`,
+        { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+      );
+      return;
+    }
+
+    if (data === "support_other_info") {
+      await sendTelegramMessage(cbChatId,
+        `📝 Bạn có thể cung cấp thông tin giao dịch để mình đối chiếu.
+
+` +
+        `Bạn có thể <b>che số tài khoản, bỏ số dư</b> — chúng mình chỉ cần:
+
+` +
+        `👤 Họ tên người chuyển
+🏦 Ngân hàng chuyển
+💵 Số tiền giao dịch
+🕒 Thời gian giao dịch
+📝 Nội dung chuyển khoản
+
+Vui lòng nhập thông tin bạn có:`,
+        { parse_mode: "HTML" }
+      );
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: "SUPPORT_OTHER_INFO" } });
+      }
+      return;
+    }
+
+    if (data === "support_correct") {
+      await sendTelegramMessage(cbChatId,
+        `📝 Vui lòng nhập <b>mã nạp tiền</b> (MORA...) để mình kiểm tra:
+
+Ví dụ: <code>MORA7KX9B2NF</code>`,
+        { parse_mode: "HTML" }
+      );
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: "SUPPORT_CORRECT" } });
+      }
+      return;
+    }
+
+    if (data === "support_wrong_content") {
+      await sendTelegramMessage(cbChatId,
+        `📝 Bạn đã chuyển khoản sai nội dung.
+
+Vui lòng nhập theo format:
+<code>MORAxxxxxx sốtiền</code>
+
+Ví dụ: <code>MORA123456 50000</code>`,
+        { parse_mode: "HTML" }
+      );
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: "SUPPORT_WRONG_CONTENT" } });
+      }
+      return;
+    }
+
+    if (data === "support_wrong_amount") {
+      await sendTelegramMessage(cbChatId,
+        `💰 Bạn đã chuyển khoản sai số tiền.
+
+Bạn đã chuyển khoản bao nhiêu tiền? Vui lòng nhập theo format:
+<code>MORAxxxxxx sốtiền</code>
+
+Ví dụ: <code>MORA123456 40000</code>`,
+        { parse_mode: "HTML" }
+      );
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: "SUPPORT_WRONG_AMOUNT" } });
+      }
+      return;
+    }
+
+    if (data === "support_wrong_both") {
+      await sendTelegramMessage(cbChatId,
+        `⚠️ Bạn đã sai cả nội dung và số tiền.
+
+Vui lòng nhập:
+📝 Nội dung đã chuyển
+💵 Số tiền đã chuyển
+
+Format: <code>MORAxxxxxx sốtiền</code>
+
+Ví dụ: <code>MORA123456 40000</code>`,
+        { parse_mode: "HTML" }
+      );
+      if (user) {
+        await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: "SUPPORT_WRONG_BOTH" } });
+      }
+      return;
+    }
+    return;
+  }
+
+  // ========== Support Flow Input ==========
+  if (user?.telegramVerifyCode?.startsWith("SUPPORT_")) {
+    const flow = user.telegramVerifyCode;
+    
+    if (flow === "SUPPORT_OTHER_INFO") {
+      await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: null } });
+      await sendTelegramMessage(chatId,
+        `🔍 Mình đã ghi nhận thông tin:
+
+${text.slice(0, 500)}
+
+Nếu cần hỗ trợ thêm, vui lòng liên hệ nhân viên qua Telegram.`,
+        { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+      );
+      return;
+    }
+
+    if (flow === "SUPPORT_CORRECT" || flow === "SUPPORT_WRONG_CONTENT" || flow === "SUPPORT_WRONG_AMOUNT" || flow === "SUPPORT_WRONG_BOTH") {
+      const parts = text.split(/\s+/);
+      const ref = parts[0]?.toUpperCase();
+      const amt = parseInt(parts[1]) || 0;
+      
+      if (!ref?.startsWith("MORA")) {
+        await sendTelegramMessage(chatId, `❌ Mã CK không hợp lệ. Vui lòng nhập đúng format: <code>MORAxxxxxx sốtiền</code>`, { parse_mode: "HTML" });
+        return;
+      }
+      
+      await sendTelegramMessage(chatId, `🔍 Hệ thống đang kiểm tra giao dịch...`, { parse_mode: "HTML" });
+      
+      const tx = await prisma.transaction.findFirst({
+        where: { reference: { contains: ref.replace("MORA", "") }, paymentMethod: "BANKING" },
+        orderBy: { createdAt: "desc" },
+      });
+      
+      await prisma.user.update({ where: { id: user.id }, data: { telegramVerifyCode: null } });
+      
+      if (tx) {
+        const bankAmount = Number(tx.amount);
+        if (tx.status === "COMPLETED") {
+          await sendTelegramMessage(chatId,
+            `✅ <b>Đã xác minh thành công!</b>\n\n💵 Tiền đã được cộng vào tài khoản.\n💰 Số tiền: <b>${bankAmount.toLocaleString("vi-VN")}đ</b>\n📝 Mã CK: <code>${ref}</code>\n\nXin lỗi vì sự chậm trễ. Cảm ơn bạn đã sử dụng MoraHub! 🙏`,
+            { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+          );
+        } else if (tx.status === "PENDING") {
+          await sendTelegramMessage(chatId,
+            `🔍 Hệ thống đã phát hiện giao dịch của bạn.\n\n⏳ Giao dịch đang được xác minh.\n💰 Số tiền: <b>${bankAmount.toLocaleString("vi-VN")}đ</b>\n\nVui lòng chờ từ 1 đến 2 phút.`,
+            { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+          );
+        } else {
+          await sendTelegramMessage(chatId,
+            `ℹ️ Giao dịch này đã được xử lý trước đó.\n\nVui lòng kiểm tra lại số dư tài khoản.`,
+            { parse_mode: "HTML", reply_markup: getCompactMenu(isVerified) }
+          );
+        }
+      } else {
+        await sendTelegramMessage(chatId,
+          `❌ Hiện tại hệ thống chưa tìm thấy giao dịch phù hợp.\n\nNguyên nhân có thể là:\n• Thông tin chưa đầy đủ\n• Giao dịch chưa được ngân hàng cập nhật\n• Sai nội dung hoặc sai số tiền\n\nVui lòng cung cấp thêm thông tin để đối chiếu.`,
+          { parse_mode: "HTML", reply_markup: { inline_keyboard: [[{ text: "➕ Bổ sung thông tin", callback_data: "support_other_info" }]] } }
+        );
+      }
+      return;
+    }
   }
 
   // ========== Help ==========

@@ -43,7 +43,7 @@ export async function GET() {
       recentUsage,
       pendingTxs,
       plan: (user as any).plan,
-      user: { name: user.name, email: user.email, role: user.role },
+      user: { name: user.name, email: user.email, role: user.role, creditBalance: Number(user.creditBalance) },
     });
   } catch (error) {
     console.error("Dashboard error:", error);

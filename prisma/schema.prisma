@@ -188,16 +188,29 @@ model UserNotification {
 
 // ======================== TICKETS ========================
 model Ticket {
-  id         String   @id @default(cuid())
-  userId     String
-  user       User     @relation(fields: [userId], references: [id])
-  subject    String
-  status     String   @default("OPEN") // OPEN | REPLYING | RESOLVED | CLOSED
-  priority   String   @default("normal")
-  category   String   @default("general")
-  messages   TicketMessage[]
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  subject      String
+  reference    String?  // MORA code
+  issueType    String?  // correct_content | wrong_content | wrong_amount | wrong_both | under_10k | other
+  status       String   @default("OPEN") // OPEN | PROCESSING | COMPLETED | FAILED | ESCALATED | CLOSED
+  resolution   String?  // auto_credit | manual_credit | rejected | escalated
+  priority     String   @default("normal")
+  category     String   @default("support")
+  assignedTo   String?  // admin/staff userId
+  amount       Float?   // transaction amount
+  wrongInfo    String?  // wrong content/amount details
+  accountName  String?  // account holder name
+  accountNumber String? // account number
+  resolvedAt   DateTime?
+  slaMinutes   Int       @default(30)
+  firstResponseAt DateTime?
+  rating       Int?
+  autoResponded Boolean  @default(false)
+  messages     TicketMessage[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("tickets")
 }
@@ -388,4 +401,23 @@ model BankSettings {
   lastChecked   DateTime?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model CreditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  transactionId String
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  action        String   // CREDIT | DEBIT | REVERSAL
+  reason        String?
+  actor         String   @default("SYSTEM") // SYSTEM | ADMIN | AUTO_BANK
+  metadata      String?
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+  @@index([transactionId])
+  @@index([createdAt])
+  @@map("credit_logs")
 }
