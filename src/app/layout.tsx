@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import AuthProvider from "@/components/auth-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
 
@@ -16,10 +17,12 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="min-h-screen bg-white text-slate-900 antialiased">
-        <AuthProvider>
+        <ThemeProvider>
+          <AuthProvider>
           {children}
           <Toaster richColors position="top-right" />
         </AuthProvider>
+          </ThemeProvider>
       </body>
     </html>
   );

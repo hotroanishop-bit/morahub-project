@@ -1,183 +1,171 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { toast } from "sonner";
-import { Webhook, Plus, Trash2, ExternalLink, Copy, Check, Zap, Activity, CreditCard, Key, Headphones } from "lucide-react";
+import { Webhook, Plus, Trash2, Check, X, Send } from "lucide-react";
 
-interface WebhookItem { id: string; url: string; events: string; isActive: boolean; createdAt: string }
+interface WebhookData {
+  id: string;
+  url: string;
+  events: string[];
+  isActive: boolean;
+  createdAt: string;
+}
 
-const EVENT_OPTIONS = [
-  { value: "usage.created", label: "Usage Created", icon: Activity, color: "bg-blue-50 text-blue-700" },
-  { value: "key.created", label: "Key Created", icon: Key, color: "bg-emerald-50 text-emerald-700" },
-  { value: "key.revoked", label: "Key Revoked", icon: Key, color: "bg-red-50 text-red-700" },
-  { value: "key.expired", label: "Key Expired", icon: Key, color: "bg-amber-50 text-amber-700" },
-  { value: "credit.low", label: "Low Credit", icon: CreditCard, color: "bg-orange-50 text-orange-700" },
-  { value: "credit.depleted", label: "Credit Depleted", icon: CreditCard, color: "bg-red-50 text-red-700" },
-  { value: "ticket.created", label: "Ticket Created", icon: Headphones, color: "bg-purple-50 text-purple-700" },
-  { value: "ticket.replied", label: "Ticket Replied", icon: Headphones, color: "bg-indigo-50 text-indigo-700" },
+const availableEvents = [
+  { value: "deposit.success", label: "💰 Nạp tiền thành công" },
+  { value: "deposit.failed", label: "❌ Nạp tiền thất bại" },
+  { value: "ticket.created", label: "🎫 Ticket mới" },
+  { value: "ticket.replied", label: "💬 Ticket có reply" },
+  { value: "key.expiring", label: "🔑 API key sắp hết hạn" },
+  { value: "low.balance", label: "⚠️ Số dư thấp" },
 ];
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState<WebhookItem[]>([]);
+  const { data: session } = useSession();
+  const user = session?.user as any;
+  const [webhooks, setWebhooks] = useState<WebhookData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [url, setUrl] = useState("");
-  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
-  const [createdSecret, setCreatedSecret] = useState<string | null>(null);
-  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [showCreate, setShowCreate] = useState(false);
+  const [newUrl, setNewUrl] = useState("");
+  const [newEvents, setNewEvents] = useState<string[]>([]);
+  const [testing, setTesting] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/webhooks").then(r => r.json()).then(d => setWebhooks(Array.isArray(d) ? d : [])).catch(() => {}).finally(() => setLoading(false));
+    fetchWebhooks();
   }, []);
 
-  async function createWebhook() {
-    if (!url.trim()) { toast.error("Nhập URL"); return; }
-    if (selectedEvents.length === 0) { toast.error("Chọn ít nhất 1 event"); return; }
-
+  async function fetchWebhooks() {
     try {
-      const res = await fetch("/api/webhooks", {
+      const res = await fetch("/api/webhooks");
+      const data = await res.json();
+      setWebhooks(data.webhooks || []);
+    } catch {} finally { setLoading(false); }
+  }
+
+  async function createWebhook() {
+    try {
+      await fetch("/api/webhooks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url, events: selectedEvents }),
+        body: JSON.stringify({ url: newUrl, events: newEvents }),
       });
-      const data = await res.json();
-      if (data.error) { toast.error(data.error); return; }
-
-      setWebhooks(prev => [data, ...prev]);
-      setCreatedSecret(data.secret);
-      setShowForm(false);
-      setUrl("");
-      setSelectedEvents([]);
-      toast.success("Tạo webhook thành công!");
-    } catch {
-      toast.error("Lỗi tạo webhook");
-    }
+      setShowCreate(false);
+      setNewUrl("");
+      setNewEvents([]);
+      await fetchWebhooks();
+    } catch {}
   }
 
   async function deleteWebhook(id: string) {
-    if (!confirm("Xóa webhook này?")) return;
-    await fetch(`/api/webhooks?id=${id}`, { method: "DELETE" });
-    setWebhooks(prev => prev.filter(w => w.id !== id));
-    toast.success("Đã xóa!");
+    try {
+      await fetch("/api/webhooks", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookId: id }),
+      });
+      await fetchWebhooks();
+    } catch {}
+  }
+
+  async function testWebhook(id: string) {
+    setTesting(id);
+    try {
+      await fetch("/api/webhooks/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ webhookId: id }),
+      });
+    } catch {} finally { setTesting(null); }
   }
 
   function toggleEvent(event: string) {
-    setSelectedEvents(prev =>
-      prev.includes(event) ? prev.filter(e => e !== event) : [...prev, event]
-    );
+    setNewEvents(prev => prev.includes(event) ? prev.filter(e => e !== event) : [...prev, event]);
   }
 
-  function copySecret() {
-    if (createdSecret) {
-      navigator.clipboard.writeText(createdSecret);
-      setCopiedId("secret");
-      toast.success("Đã copy secret!");
-      setTimeout(() => setCopiedId(null), 2000);
-    }
-  }
+  if (loading) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" /></div>;
 
   return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="flex items-start lg:items-center justify-between flex-col lg:flex-row gap-3">
-        <div>
-          <h1 className="text-xl lg:text-2xl font-extrabold text-slate-900 tracking-tight">Webhooks</h1>
-          <p className="text-slate-500 mt-1 text-sm">Nhận thông báo real-time khi sự kiện xảy ra</p>
-        </div>
-        <Button onClick={() => setShowForm(!showForm)} className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl">
+    <div className="max-w-2xl mx-auto space-y-6">
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-extrabold text-slate-900">🔔 Webhooks</h1>
+        <Button onClick={() => setShowCreate(true)} size="sm" className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white">
           <Plus className="w-4 h-4 mr-1" /> Thêm Webhook
         </Button>
       </div>
 
-      {/* Created secret alert */}
-      {createdSecret && (
-        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
-          <div className="flex items-start gap-3">
-            <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 text-amber-600" />
-            </div>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-800">Lưu Secret Key!</p>
-              <p className="text-xs text-amber-600 mt-1">Đây là lần duy nhất bạn thấy secret này. Copy và lưu lại.</p>
-              <div className="flex items-center gap-2 mt-2">
-                <code className="bg-white px-3 py-1 rounded-lg text-xs font-mono text-amber-800 border border-amber-200">{createdSecret}</code>
-                <button onClick={copySecret} className="text-amber-600 hover:text-amber-800">
-                  {copiedId === "secret" ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                </button>
+      <Card className="border-blue-200 bg-blue-50">
+        <CardContent className="p-4">
+          <p className="text-sm text-blue-800">
+            Webhook sẽ nhận POST request khi có event. Body chứa JSON với thông tin event.
+          </p>
+        </CardContent>
+      </Card>
+
+      {showCreate && (
+        <Card>
+          <CardHeader><CardTitle className="text-sm">Tạo Webhook mới</CardTitle></CardHeader>
+          <CardContent className="space-y-3">
+            <input type="url" value={newUrl} onChange={e => setNewUrl(e.target.value)}
+              placeholder="https://your-server.com/webhook" className="w-full px-4 py-2.5 bg-slate-50 border rounded-xl text-sm" />
+            <div>
+              <p className="text-xs text-slate-500 mb-2">Events:</p>
+              <div className="space-y-1">
+                {availableEvents.map(ev => (
+                  <label key={ev.value} className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={newEvents.includes(ev.value)} onChange={() => toggleEvent(ev.value)}
+                      className="w-4 h-4 rounded border-slate-300 text-indigo-500" />
+                    <span className="text-sm">{ev.label}</span>
+                  </label>
+                ))}
               </div>
             </div>
-            <button onClick={() => setCreatedSecret(null)} className="text-amber-400 hover:text-amber-600">×</button>
-          </div>
-        </div>
-      )}
-
-      {/* Create form */}
-      {showForm && (
-        <div className="bg-white rounded-2xl border border-slate-100 p-5 space-y-4">
-          <h3 className="font-bold text-slate-900">Tạo Webhook Mới</h3>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-600 mb-1 block">Endpoint URL</label>
-            <input type="url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://your-server.com/webhook" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900" />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-600 mb-2 block">Events</label>
-            <div className="grid grid-cols-2 gap-2">
-              {EVENT_OPTIONS.map((ev) => (
-                <button key={ev.value} onClick={() => toggleEvent(ev.value)}
-                  className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-medium transition-all ${
-                    selectedEvents.includes(ev.value) ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-slate-200 bg-slate-50 text-slate-600 hover:border-slate-300"
-                  }`}>
-                  <ev.icon className="w-3.5 h-3.5" /> {ev.label}
-                </button>
-              ))}
+            <div className="flex gap-2">
+              <Button onClick={createWebhook} className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white" disabled={!newUrl || newEvents.length === 0}>Tạo</Button>
+              <Button onClick={() => setShowCreate(false)} variant="outline">Hủy</Button>
             </div>
-          </div>
-
-          <div className="flex gap-2">
-            <Button onClick={createWebhook} className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl">Tạo</Button>
-            <Button variant="outline" onClick={() => setShowForm(false)} className="rounded-xl">Hủy</Button>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
-      {/* Webhook list */}
-      {loading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Đang tải...</div>
-      ) : webhooks.length === 0 ? (
-        <div className="text-center py-12 text-slate-400">
-          <Webhook className="w-10 h-10 mx-auto mb-3 opacity-40" />
-          <p className="text-sm">Chưa có webhook nào</p>
-          <p className="text-xs mt-1">Tạo webhook để nhận thông báo real-time</p>
-        </div>
+      {webhooks.length === 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <Webhook className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-400">Chưa có webhook nào</p>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
-          {webhooks.map((wh) => (
-            <div key={wh.id} className="bg-white rounded-2xl border border-slate-100 p-4">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <ExternalLink className="w-4 h-4 text-slate-400 shrink-0" />
-                    <code className="text-sm font-mono text-slate-700 truncate">{wh.url}</code>
+          {webhooks.map(w => (
+            <Card key={w.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between mb-2">
+                  <div>
+                    <code className="text-sm font-mono text-slate-700 break-all">{w.url}</code>
+                    <div className="flex gap-1 mt-1 flex-wrap">
+                      {w.events.map(e => (
+                        <span key={e} className="text-[10px] px-1.5 py-0.5 bg-indigo-100 text-indigo-600 rounded">{e}</span>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 mt-2">
-                    {wh.events.split(",").map((ev) => {
-                      const opt = EVENT_OPTIONS.find(e => e.value === ev);
-                      return (
-                        <span key={ev} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${opt?.color || "bg-slate-100 text-slate-600"}`}>
-                          {opt?.label || ev}
-                        </span>
-                      );
-                    })}
+                  <div className="flex gap-1">
+                    <Button onClick={() => testWebhook(w.id)} size="sm" variant="outline" className="text-[10px] h-6" disabled={testing === w.id}>
+                      <Send className="w-3 h-3" />
+                    </Button>
+                    <Button onClick={() => deleteWebhook(w.id)} size="sm" variant="outline" className="text-[10px] h-6 text-red-600">
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
-                <button onClick={() => deleteWebhook(wh.id)} className="text-slate-400 hover:text-red-500 p-1 shrink-0">
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+                <p className="text-[10px] text-slate-400">
+                  Tạo: {new Date(w.createdAt).toLocaleDateString("vi-VN")}
+                  
+                </p>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

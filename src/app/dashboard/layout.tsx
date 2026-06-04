@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock } from "lucide-react";
+import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock, Download, Ticket, BookOpen } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import AnnouncementBanner from "@/components/announcement-banner";
 import { useState } from "react";
@@ -22,6 +22,11 @@ const navItems = [
   { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
   { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
   { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
+  { href: "/dashboard/activity", label: "Hoạt Động", icon: Clock },
+  { href: "/dashboard/export", label: "Xuất Dữ Liệu", icon: Download },
+  { href: "/dashboard/coupons", label: "Coupon", icon: Ticket },
+  { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
+  { href: "/dashboard/docs", label: "API Docs", icon: BookOpen },
   { href: "/dashboard/tickets", label: "Hỗ Trợ", icon: Headphones },
   { href: "/dashboard/ticket-history", label: "Lịch sử hỗ trợ", icon: Clock },
   { href: "/dashboard/api-docs", label: "API Docs", icon: FileText },
@@ -35,6 +40,11 @@ const navItems = [
   { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
   { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
   { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
+  { href: "/dashboard/activity", label: "Hoạt Động", icon: Clock },
+  { href: "/dashboard/export", label: "Xuất Dữ Liệu", icon: Download },
+  { href: "/dashboard/coupons", label: "Coupon", icon: Ticket },
+  { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
+  { href: "/dashboard/docs", label: "API Docs", icon: BookOpen },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {

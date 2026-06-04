@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkDeposits } from "@/lib/bank-checker";
+import { checkUsageAlerts } from "@/lib/usage-alerts";
 
 // Cron endpoint - protected with secret token
 export async function GET(req: NextRequest) {
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
 
   try {
     await checkDeposits();
+    await checkUsageAlerts();
     return NextResponse.json({ ok: true, time: new Date().toISOString() });
   } catch (err: any) {
     console.error("Cron check-deposits error:", err);
