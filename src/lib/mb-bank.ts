@@ -12,7 +12,10 @@ const MB_API_BASE = "https://online.mbbank.com.vn";
 // Cache session
 let sessionId: string | null = null;
 let lastLogin = 0;
-const SESSION_TTL = 5 * 60 * 1000; // 5 minutes
+let loginFailed = false;
+let lastFailedAttempt = 0;
+const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+const LOGIN_COOLDOWN = 5 * 60 * 1000; // 5 min cooldown after failed login
 let wasmData: Buffer | null = null;
 
 // Generate device ID
@@ -120,6 +123,7 @@ async function login(username: string, password: string): Promise<boolean> {
     if (loginData.result?.ok) {
       sessionId = loginData.sessionId;
       lastLogin = Date.now();
+      loginFailed = false;
       console.log("[MB Bank] Login success");
       return true;
     } else if (loginData.result?.responseCode === "GW283") {
@@ -128,6 +132,8 @@ async function login(username: string, password: string): Promise<boolean> {
       return login(username, password);
     } else {
       console.error("[MB Bank] Login failed:", loginData.result?.message);
+      loginFailed = true;
+      lastFailedAttempt = Date.now();
       return false;
     }
   } catch (err) {
@@ -141,9 +147,26 @@ async function mbRequest(path: string, body?: object): Promise<any> {
   const settings = await prisma.siteSettings.findFirst();
   if (!settings?.bankUsername || !settings?.bankPassword) return null;
 
-  if (!sessionId || Date.now() - lastLogin > SESSION_TTL) {
+  // Cooldown after failed login
+  if (loginFailed && Date.now() - lastFailedAttempt < LOGIN_COOLDOWN) {
+    console.log("[MB Bank] Login cooldown, skip...");
+    return null;
+  }
+
+  // Only re-login when session expired or first time
+  if (!sessionId && !loginFailed) {
     const ok = await login(settings.bankUsername, settings.bankPassword);
-    if (!ok) return null;
+    if (!ok) {
+      loginFailed = true;
+      lastFailedAttempt = Date.now();
+      return null;
+    }
+  }
+
+  // Session expired naturally
+  if (sessionId && Date.now() - lastLogin > SESSION_TTL) {
+    sessionId = null; // Will re-login on next request
+    return null;
   }
 
   const deviceId = generateDeviceId();
