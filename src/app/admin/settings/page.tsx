@@ -46,10 +46,10 @@ export default function AdminSettingsPage() {
   const [emailVerifyRequired, setEmailVerifyRequired] = useState(false);
 
   // MB Bank Auto-Deposit
-  const [bankUsername, setBankUsername] = useState("");
+  const [bankUsername, setBankUsername] = useState("0348747503");
   const [bankPassword, setBankPassword] = useState("");
-  const [bankAccountNumber, setBankAccountNumber] = useState("");
-  const [bankActive, setBankActive] = useState(false);
+  const [bankAccountNumber, setBankAccountNumber] = useState("148393");
+  const [bankActive, setBankActive] = useState(true);
 
   // API Test
   const [testStatus, setTestStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -288,7 +288,26 @@ export default function AdminSettingsPage() {
       {tab === "bank" && (
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
           <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2"><Building2 className="w-5 h-5 text-blue-500" /> 🏦 MB Bank Auto-Deposit</h3>
-          <p className="text-xs text-slate-500 mb-4">Tự động check giao dịch MB Bank mỗi 30 giây. Match reference <code>MORAxxxxxx</code> → auto cộng credit.</p>
+          <p className="text-xs text-slate-500 mb-4">Tự động check giao dịch MB Bank. Match reference <code>MORAxxxxxx</code> → auto cộng credit.</p>
+          
+          {/* ON/OFF Toggle - Prominent */}
+          <div className={`p-4 rounded-xl mb-4 ${bankActive ? "bg-green-50 border-2 border-green-300" : "bg-red-50 border-2 border-red-300"}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-slate-900">Tự động nạp tiền</div>
+                <div className={`text-xs ${bankActive ? "text-green-600" : "text-red-600"}`}>
+                  {bankActive ? "✅ Đang BẬT — cron tự check giao dịch" : "⛔ ĐANG TẮT — không check tự động"}
+                </div>
+              </div>
+              <button onClick={() => setBankActive(!bankActive)} className={`w-14 h-7 rounded-full transition-all ${bankActive ? "bg-green-500" : "bg-red-400"}`}>
+                <div className={`w-6 h-6 bg-white rounded-full shadow transition-transform ${bankActive ? "translate-x-7" : "translate-x-0.5"}`} />
+              </button>
+            </div>
+            {!bankActive && (
+              <p className="text-xs text-red-500 mt-2">⚠️ Khi bạn vô MB Bank trên điện thoại, hãy TẮT feature này để tránh conflict session!</p>
+            )}
+          </div>
+
           <div className="space-y-4">
             <div>
               <Label className="text-slate-700 font-medium text-sm">Tên đăng nhập MB Bank</Label>
@@ -299,40 +318,31 @@ export default function AdminSettingsPage() {
               <Input type="password" value={bankPassword} onChange={(e) => setBankPassword(e.target.value)} placeholder="Để trống nếu không đổi" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
             </div>
             <div>
-              <Label className="text-slate-700 font-medium text-sm">Số tài khoản nhận tiền</Label>
-              <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} placeholder="Số tài khoản MB Bank" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
+              <Label className="text-slate-700 font-medium text-sm">Số tài khoản nhận tiền (mặc định: 148393)</Label>
+              <Input value={bankAccountNumber} onChange={(e) => setBankAccountNumber(e.target.value)} placeholder="148393" className="bg-slate-50 border-slate-200 text-slate-900 mt-1.5 rounded-xl h-11" />
             </div>
-            <div className="p-4 bg-slate-50 rounded-xl">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-medium text-slate-900">Tự động check giao dịch</div>
-                  <div className="text-xs text-slate-500">Mỗi 30 giây • Match ref MORAxxxxxx</div>
-                </div>
-                <button onClick={() => setBankActive(!bankActive)} className={`w-12 h-6 rounded-full transition-all ${bankActive ? "bg-green-500" : "bg-slate-300"}`}><div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${bankActive ? "translate-x-6" : "translate-x-0.5"}`} /></button>
-              </div>
-            </div>
-            {bankActive && (
-              <div className="p-3 bg-green-50 rounded-xl border border-green-200">
-                <div className="text-sm text-green-700">
-                  ✅ Auto-deposit đang hoạt động<br/>
-                  📡 Cron job check mỗi 30 giây<br/>
-                  🔄 Session cache 5 phút (không login lại mỗi lần)
-                </div>
-                <button onClick={async () => {
-                  const res = await fetch("/api/bank/balance");
-                  const data = await res.json();
-                  if (data.ok) {
-                    const accounts = data.accounts?.map((a: any) => `${a.name} (${a.number}): ${Number(a.balance).toLocaleString("vi-VN")} ${a.currency}`).join("\n");
-                    alert(`💰 Số dư MB Bank:\n\nTổng: ${Number(data.totalBalance).toLocaleString("vi-VN")} ${data.currency}\n\n${accounts || ""}`);
-                  } else {
-                    alert(data.error || "Lỗi lấy số dư");
-                  }
-                }} className="mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition">
-                  💰 Xem số dư MB Bank
-                </button>
-              </div>
-            )}
           </div>
+
+          {bankActive && (
+            <div className="mt-4 p-3 bg-green-50 rounded-xl border border-green-200">
+              <div className="text-sm text-green-700">
+                📡 Cron job check mỗi 1 phút<br/>
+                🔄 Session cache 5 phút (không login lại mỗi lần)
+              </div>
+              <button onClick={async () => {
+                const res = await fetch("/api/bank/balance");
+                const data = await res.json();
+                if (data.ok) {
+                  const accounts = data.accounts?.map((a: any) => `${a.name} (${a.number}): ${Number(a.balance).toLocaleString("vi-VN")} ${a.currency}`).join("\n");
+                  alert(`💰 Số dư MB Bank:\n\nTổng: ${Number(data.totalBalance).toLocaleString("vi-VN")} ${data.currency}\n\n${accounts || ""}`);
+                } else {
+                  alert(data.error || "Lỗi lấy số dư");
+                }
+              }} className="mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition">
+                💰 Xem số dư MB Bank
+              </button>
+            </div>
+          )}
         </div>
       )}
 
