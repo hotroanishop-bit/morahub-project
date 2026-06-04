@@ -1,8 +1,21 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { checkDeposits } from "@/lib/bank-checker";
 
-// Cron endpoint - call every 30 seconds via crontab
-export async function GET() {
+// Cron endpoint - protected with secret token
+export async function GET(req: NextRequest) {
+  // Verify cron secret token
+  const authHeader = req.headers.get("authorization");
+  const cronSecret = process.env.CRON_SECRET;
+  
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    // Also check query param for curl-based cron
+    const url = new URL(req.url);
+    const token = url.searchParams.get("token");
+    if (token !== cronSecret) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+  }
+
   try {
     await checkDeposits();
     return NextResponse.json({ ok: true, time: new Date().toISOString() });
