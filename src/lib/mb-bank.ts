@@ -12,43 +12,43 @@ import { sendTelegramMessage } from "./telegram-bot";
 
 const MB_API_BASE = "https://online.mbbank.com.vn";
 
-// Cache session — no timer, just keep it alive
+// Cache session
 let sessionId: string | null = null;
 let loginFailed = false;
 let lastFailedAttempt = 0;
-const LOGIN_COOLDOWN = 5 * 60 * 1000; // 5 min cooldown after failed login
+const LOGIN_COOLDOWN = 5 * 60 * 1000;
 
 function generateDeviceId(): string {
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+  return "s1rmi184-mbib-0000-0000-" + getTimeNow();
 }
 
 function getTimeNow(): string {
   const now = new Date();
   const pad = (n: number) => n.toString().padStart(2, "0");
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${now.getMilliseconds().toString().slice(0, -1)}`;
+  const ms = now.getMilliseconds().toString().slice(0, -1);
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}${ms}`;
 }
 
 function getDefaultHeaders(deviceId: string, refNo: string) {
   return {
-    "Content-Type": "application/json",
-    "User-Agent": "Mozilla/5.0 (Linux; Android 12; Pixel 5) AppleWebKit/537.36",
+    "Content-Type": "application/json; charset=UTF-8",
+    "Accept": "application/json, text/plain, */*",
+    "Authorization": "Basic RU1CUkVUQUlMV0VCOlNEMjM0ZGZnMzQlI0BGR0AzNHNmc2RmNDU4NDNm",
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36",
+    "Origin": "https://online.mbbank.com.vn",
+    "Referer": "https://online.mbbank.com.vn/pl/login?returnUrl=%2F",
     "X-Request-Id": refNo,
     "Deviceid": deviceId,
     "Refno": refNo,
-    "Origin": "https://online.mbbank.com.vn",
-    "Referer": "https://online.mbbank.com.vn/",
+    "app": "MB_WEB",
   };
 }
 
 async function recognizeCaptcha(imageBase64: string): Promise<string | null> {
   try {
+    const imageBuffer = Buffer.from(imageBase64, "base64");
     const { createWorker } = await import("tesseract.js");
     const worker = await createWorker("eng");
-    const imageBuffer = Buffer.from(imageBase64, "base64");
     const { data: { text } } = await worker.recognize(imageBuffer);
     await worker.terminate();
     const cleaned = text.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6);
@@ -66,23 +66,39 @@ async function login(username: string, password: string): Promise<boolean> {
     const headers = getDefaultHeaders(deviceId, rId);
 
     // 1. Get captcha
+    console.log("[MB Bank] Getting captcha...");
     const captchaRes = await fetch(`${MB_API_BASE}/api/retail-internetbankingms/getCaptchaImage`, {
       method: "POST",
       headers,
       body: JSON.stringify({ sessionId: "", refNo: rId, deviceIdCommon: deviceId }),
     });
+    
+    if (!captchaRes.ok) {
+      console.error("[MB Bank] Captcha request failed:", captchaRes.status);
+      return false;
+    }
+    
     const captchaData = await captchaRes.json() as any;
-    if (!captchaData.imageString) return false;
+    if (!captchaData.imageString) {
+      console.error("[MB Bank] No captcha image");
+      return false;
+    }
 
     // 2. Recognize captcha
+    console.log("[MB Bank] Recognizing captcha...");
     const captchaText = await recognizeCaptcha(captchaData.imageString);
-    if (!captchaText) return login(username, password); // Retry on captcha fail
+    if (!captchaText) {
+      console.log("[MB Bank] Captcha OCR failed, retrying...");
+      return login(username, password);
+    }
+    console.log("[MB Bank] Captcha:", captchaText);
 
-    // 3. Hash password
+    // 3. Hash password with MD5
     const crypto = await import("crypto");
     const hashedPassword = crypto.createHash("md5").update(password).digest("hex");
 
     // 4. Login
+    console.log("[MB Bank] Logging in...");
     const loginRes = await fetch(`${MB_API_BASE}/api/retail_web/internetbanking/v2.0/doLogin`, {
       method: "POST",
       headers,
@@ -101,12 +117,13 @@ async function login(username: string, password: string): Promise<boolean> {
     if (loginData.result?.ok) {
       sessionId = loginData.sessionId;
       loginFailed = false;
-      console.log("[MB Bank] Login success, session:", sessionId?.slice(0, 8));
+      console.log("[MB Bank] ✅ Login success!");
       return true;
     } else if (loginData.result?.responseCode === "GW283") {
-      return login(username, password); // Captcha wrong, retry
+      console.log("[MB Bank] Captcha wrong, retrying...");
+      return login(username, password);
     } else {
-      console.error("[MB Bank] Login failed:", loginData.result?.message);
+      console.error("[MB Bank] ❌ Login failed:", loginData.result?.message || JSON.stringify(loginData.result));
       loginFailed = true;
       lastFailedAttempt = Date.now();
       return false;
@@ -117,15 +134,12 @@ async function login(username: string, password: string): Promise<boolean> {
   }
 }
 
-// Make request — only re-login when MB Bank says session expired (GW200)
 async function mbRequest(path: string, body?: object): Promise<any> {
   const settings = await prisma.siteSettings.findFirst();
   if (!settings?.bankUsername || !settings?.bankPassword) return null;
 
-  // Cooldown after failed login
   if (loginFailed && Date.now() - lastFailedAttempt < LOGIN_COOLDOWN) return null;
 
-  // No session — login first
   if (!sessionId) {
     const ok = await login(settings.bankUsername, settings.bankPassword);
     if (!ok) return null;
@@ -142,18 +156,16 @@ async function mbRequest(path: string, body?: object): Promise<any> {
   });
   const data = await res.json() as any;
 
-  // MB Bank says session expired → login once, retry
   if (data.result?.responseCode === "GW200") {
     console.log("[MB Bank] Session expired, re-login...");
     sessionId = null;
     loginFailed = false;
-    return mbRequest(path, body); // Retry with fresh login
+    return mbRequest(path, body);
   }
 
   return data;
 }
 
-// Get balance
 export async function getBalance() {
   const data = await mbRequest("/api/retail-accountms/accountms/getBalance");
   if (!data?.totalBalanceEquivalent) return null;
@@ -169,7 +181,6 @@ export async function getBalance() {
   };
 }
 
-// Get transaction history
 export async function getTransactions(fromDate: string, toDate: string) {
   const settings = await prisma.siteSettings.findFirst();
   if (!settings?.bankAccountNumber) return [];
@@ -185,7 +196,6 @@ export async function getTransactions(fromDate: string, toDate: string) {
   }));
 }
 
-// Check deposits (called by cron)
 export async function checkDeposits() {
   try {
     const settings = await prisma.siteSettings.findFirst();
@@ -202,10 +212,8 @@ export async function checkDeposits() {
 
     const pendingDeposits = await prisma.transaction.findMany({
       where: {
-        status: "PENDING",
-        paymentMethod: "BANKING",
-        reference: { startsWith: "MORA" },
-        createdAt: { gte: fromDate },
+        status: "PENDING", paymentMethod: "BANKING",
+        reference: { startsWith: "MORA" }, createdAt: { gte: fromDate },
       },
     });
 
@@ -216,38 +224,20 @@ export async function checkDeposits() {
       });
 
       if (match) {
-        await prisma.user.update({
-          where: { id: tx.userId },
-          data: { creditBalance: { increment: Number(tx.amount) } },
-        });
-        await prisma.transaction.update({
-          where: { id: tx.id },
-          data: { status: "COMPLETED" },
-        });
+        await prisma.user.update({ where: { id: tx.userId }, data: { creditBalance: { increment: Number(tx.amount) } } });
+        await prisma.transaction.update({ where: { id: tx.id }, data: { status: "COMPLETED" } });
 
         const user = await prisma.user.findUnique({ where: { id: tx.userId } });
         if (user?.telegramId) {
-          await sendTelegramMessage(
-            parseInt(user.telegramId),
-            `✅ <b>Nạp tiền thành công!</b>\n\n💰 Số tiền: <b>${Number(tx.amount).toLocaleString("vi-VN")}đ</b>\n📝 Ref: <code>${tx.reference}</code>\n💎 Số dư mới: <b>${(Number(user.creditBalance) + Number(tx.amount)).toLocaleString("vi-VN")}đ</b>`,
-            { parse_mode: "HTML" }
-          );
+          await sendTelegramMessage(parseInt(user.telegramId),
+            `✅ <b>Nạp tiền thành công!</b>\n\n💰 Số tiền: <b>${Number(tx.amount).toLocaleString("vi-VN")}đ</b>\n📝 Ref: <code>${tx.reference}</code>`,
+            { parse_mode: "HTML" });
         }
-
-        const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
-        if (admin?.telegramId) {
-          await sendTelegramMessage(
-            parseInt(admin.telegramId),
-            `🔔 <b>Auto-Deposit</b>\n👤 ${user?.email}\n💰 ${Number(tx.amount).toLocaleString("vi-VN")}đ\n📝 ${tx.reference}`,
-            { parse_mode: "HTML" }
-          );
-        }
-
-        console.log(`[Auto-Deposit] Confirmed: ${tx.reference} - ${tx.amount}đ`);
+        console.log(`[Auto-Deposit] Confirmed: ${tx.reference}`);
       }
     }
   } catch (err) {
     console.error("[Auto-Deposit] Error:", err);
-    sessionId = null; // Reset on error so next request re-login
+    sessionId = null;
   }
 }
