@@ -29,6 +29,7 @@ const navItems = [
   { href: "/dashboard/request-logs", label: "Request Logs", icon: ClipboardList },
   { href: "/dashboard/affiliate", label: "Giới Thiệu", icon: Users },
   { href: "/dashboard/settings", label: "Cài Đặt", icon: Settings },
+  { href: "/dashboard/security", label: "Bảo Mật", icon: Shield },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
