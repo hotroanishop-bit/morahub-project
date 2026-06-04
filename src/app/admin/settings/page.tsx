@@ -318,12 +318,18 @@ export default function AdminSettingsPage() {
                   📡 Cron job check mỗi 30 giây<br/>
                   🔄 Session cache 5 phút (không login lại mỗi lần)
                 </div>
-                <div className="mt-3 p-3 bg-amber-50 rounded-lg border border-amber-200">
-                  <div className="text-sm text-amber-700">
-                    ⚠️ Tính năng xem số dư MB Bank đang được phát triển.<br/>
-                    Hiện tại sử dụng nạp tiền thủ công qua Telegram bot.
-                  </div>
-                </div>
+                <button onClick={async () => {
+                  const res = await fetch("/api/bank/balance");
+                  const data = await res.json();
+                  if (data.ok) {
+                    const accounts = data.accounts?.map((a: any) => `${a.name} (${a.number}): ${Number(a.balance).toLocaleString("vi-VN")} ${a.currency}`).join("\n");
+                    alert(`💰 Số dư MB Bank:\n\nTổng: ${Number(data.totalBalance).toLocaleString("vi-VN")} ${data.currency}\n\n${accounts || ""}`);
+                  } else {
+                    alert(data.error || "Lỗi lấy số dư");
+                  }
+                }} className="mt-3 px-4 py-2 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition">
+                  💰 Xem số dư MB Bank
+                </button>
               </div>
             )}
           </div>
