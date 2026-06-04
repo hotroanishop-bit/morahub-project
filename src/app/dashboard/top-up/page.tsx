@@ -30,9 +30,9 @@ export default function TopUpPage() {
 
   useEffect(() => {
     if (transaction && settings?.bankBin && settings?.accountNo) {
-      // Use VietQR API for proper QR code
-      const note = `${settings.depositNote || "NAP"}`;
-      const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.accountNo}-compact2.png?amount=${transaction.amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(settings.accountName)}`;
+      // Use transaction reference as payment content
+      const note = transaction.reference || "MORA";
+      const url = `https://img.vietqr.io/image/${settings.bankBin}-${settings.accountNo}-compact2.png?amount=${transaction.amount}&addInfo=${encodeURIComponent(note)}&accountName=${encodeURIComponent(settings.accountName || "HUYNH THE NGOC")}`;
       setQrUrl(url);
     }
   }, [transaction, settings]);
