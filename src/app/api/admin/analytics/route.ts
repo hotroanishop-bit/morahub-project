@@ -1,126 +1,111 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { auth } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/auth-helpers";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  try {
+    const user = await getCurrentUser();
+    if (!user || user.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const period = searchParams.get("period") || "30d";
-  const exportCsv = searchParams.get("export") === "csv";
+    const url = new URL(req.url);
+    const period = url.searchParams.get("period") || "7d";
+    const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
 
-  const now = new Date();
-  let fromDate: Date;
-  if (period === "7d") fromDate = new Date(now.getTime() - 7 * 86400000);
-  else if (period === "90d") fromDate = new Date(now.getTime() - 90 * 86400000);
-  else if (period === "12m") fromDate = new Date(now.getTime() - 365 * 86400000);
-  else fromDate = new Date(now.getTime() - 30 * 86400000);
-
-  // Revenue by day
-  const txs = await prisma.transaction.findMany({
-    where: { status: "COMPLETED", createdAt: { gte: fromDate } },
-    select: { amount: true, createdAt: true, paymentMethod: true },
-    orderBy: { createdAt: "asc" },
-  });
-
-  // Top models by revenue
-  const modelUsage = await prisma.usageLog.groupBy({
-    by: ["modelId"],
-    where: { createdAt: { gte: fromDate } },
-    _sum: { cost: true },
-    _count: true,
-    orderBy: { _sum: { cost: "desc" } },
-    take: 10,
-  });
-
-  const modelIds = modelUsage.map(m => m.modelId);
-  const models = await prisma.aiModel.findMany({
-    where: { id: { in: modelIds } },
-    select: { id: true, name: true, displayName: true, provider: true },
-  });
-  const modelMap = Object.fromEntries(models.map(m => [m.id, m]));
-
-  // Top users by spend
-  const topUsers = await prisma.usageLog.groupBy({
-    by: ["userId"],
-    where: { createdAt: { gte: fromDate } },
-    _sum: { cost: true },
-    _count: true,
-    orderBy: { _sum: { cost: "desc" } },
-    take: 10,
-  });
-
-  const userIds = topUsers.map(u => u.userId);
-  const users = await prisma.user.findMany({
-    where: { id: { in: userIds } },
-    select: { id: true, name: true, email: true },
-  });
-  const userMap = Object.fromEntries(users.map(u => [u.id, u]));
-
-  // Aggregate
-  const totalRevenue = txs.reduce((sum, t) => sum + Number(t.amount), 0);
-  const totalApiCost = modelUsage.reduce((sum, m) => sum + Number(m._sum.cost || 0), 0);
-  const profit = totalRevenue - totalApiCost;
-
-  // By day
-  const dayMap = new Map<string, number>();
-  for (const tx of txs) {
-    const day = tx.createdAt.toISOString().split("T")[0];
-    dayMap.set(day, (dayMap.get(day) || 0) + Number(tx.amount));
-  }
-
-  // Fill missing days
-  const byDay: { date: string; revenue: number }[] = [];
-  const days = Math.ceil((now.getTime() - fromDate.getTime()) / 86400000);
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now.getTime() - i * 86400000);
-    const key = d.toISOString().split("T")[0];
-    byDay.push({ date: key, revenue: dayMap.get(key) || 0 });
-  }
-
-  // By payment method
-  const byMethod = txs.reduce((acc, t) => {
-    acc[t.paymentMethod] = (acc[t.paymentMethod] || 0) + Number(t.amount);
-    return acc;
-  }, {} as Record<string, number>);
-
-  const result = {
-    summary: { totalRevenue, totalApiCost, profit, totalTransactions: txs.length },
-    byDay,
-    byMethod,
-    topModels: modelUsage.map(m => ({
-      ...modelMap[m.modelId],
-      revenue: Number(m._sum.cost || 0),
-      calls: m._count,
-    })),
-    topUsers: topUsers.map(u => ({
-      ...userMap[u.userId],
-      spend: Number(u._sum.cost || 0),
-      calls: u._count,
-    })),
-  };
-
-  // CSV export
-  if (exportCsv) {
-    const csvRows = ["Date,Revenue"];
-    for (const d of byDay) csvRows.push(`${d.date},${d.revenue}`);
-    csvRows.push("");
-    csvRows.push("Model,Calls,Revenue");
-    for (const m of result.topModels) csvRows.push(`${m.displayName || m.name},${m.calls},${m.revenue}`);
-    csvRows.push("");
-    csvRows.push("User,Email,Calls,Spend");
-    for (const u of result.topUsers) csvRows.push(`${u.name || ""},${u.email},${u.calls},${u.spend}`);
-
-    return new NextResponse(csvRows.join("\n"), {
-      headers: {
-        "Content-Type": "text/csv",
-        "Content-Disposition": `attachment; filename="morahub-revenue-${period}.csv"`,
-      },
+    // Revenue
+    const transactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: startDate } },
+      select: { amount: true, createdAt: true },
     });
-  }
 
-  return NextResponse.json(result);
+    const totalRevenue = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
+
+    // Daily revenue
+    const dailyRevenue: { date: string; amount: number }[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const date = new Date();
+      date.setDate(date.getDate() - i);
+      const dateStr = date.toISOString().split("T")[0];
+      const dayTotal = transactions
+        .filter(t => t.createdAt.toISOString().startsWith(dateStr))
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+      dailyRevenue.push({ date: dateStr, amount: dayTotal });
+    }
+
+    // Previous period for comparison
+    const prevStartDate = new Date(startDate);
+    prevStartDate.setDate(prevStartDate.getDate() - days);
+    const prevTransactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: prevStartDate, lt: startDate } },
+      select: { amount: true },
+    });
+    const prevRevenue = prevTransactions.reduce((sum, t) => sum + Number(t.amount), 0);
+    const revenueChange = prevRevenue > 0 ? ((totalRevenue - prevRevenue) / prevRevenue * 100) : 0;
+
+    // Users
+    const totalUsers = await prisma.user.count();
+    const newUsers = await prisma.user.count({ where: { createdAt: { gte: startDate } } });
+    const activeUsers = await prisma.user.count({ where: { updatedAt: { gte: startDate } } });
+
+    // Transactions
+    const totalTransactions = await prisma.transaction.count({ where: { createdAt: { gte: startDate } } });
+    const successTransactions = await prisma.transaction.count({ where: { status: "COMPLETED", createdAt: { gte: startDate } } });
+    const failedTransactions = await prisma.transaction.count({ where: { status: "FAILED", createdAt: { gte: startDate } } });
+    const pendingTransactions = await prisma.transaction.count({ where: { status: "PENDING", createdAt: { gte: startDate } } });
+
+    // Top models (from UsageLog)
+    const usageLogs = await prisma.usageLog.findMany({
+      where: { createdAt: { gte: startDate } },
+      select: { model: { select: { name: true } }, tokensIn: true, cost: true },
+    });
+
+    const modelStats: Record<string, { calls: number; revenue: number }> = {};
+    usageLogs.forEach(log => {
+      if (!modelStats[log.model.name]) modelStats[log.model.name] = { calls: 0, revenue: 0 };
+      modelStats[log.model.name].calls++;
+      modelStats[log.model.name].revenue += Number(log.cost || 0);
+    });
+
+    const topModels = Object.entries(modelStats)
+      .map(([name, stats]) => ({ name, ...stats }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Top users (from transactions)
+    const userTransactions = await prisma.transaction.findMany({
+      where: { status: "COMPLETED", createdAt: { gte: startDate } },
+      select: { userId: true, amount: true },
+    });
+
+    const userStats: Record<string, { spend: number; calls: number }> = {};
+    userTransactions.forEach(t => {
+      if (!userStats[t.userId]) userStats[t.userId] = { spend: 0, calls: 0 };
+      userStats[t.userId].spend += Number(t.amount);
+      userStats[t.userId].calls++;
+    });
+
+    const topUsersRaw = Object.entries(userStats)
+      .map(([userId, stats]) => ({ userId, ...stats }))
+      .sort((a, b) => b.spend - a.spend)
+      .slice(0, 10);
+
+    const topUsers = await Promise.all(
+      topUsersRaw.map(async u => {
+        const user = await prisma.user.findUnique({ where: { id: u.userId }, select: { name: true, email: true } });
+        return { name: user?.name || "Unknown", email: user?.email || "", ...u };
+      })
+    );
+
+    return NextResponse.json({
+      revenue: { total: totalRevenue, change: revenueChange, daily: dailyRevenue },
+      users: { total: totalUsers, new: newUsers, active: activeUsers },
+      transactions: { total: totalTransactions, success: successTransactions, failed: failedTransactions, pending: pendingTransactions },
+      topModels,
+      topUsers,
+    });
+  } catch (error) {
+    console.error("Analytics error:", error);
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+  }
 }

@@ -421,3 +421,5 @@ model CreditLog {
   @@index([createdAt])
   @@map("credit_logs")
 }
+
+

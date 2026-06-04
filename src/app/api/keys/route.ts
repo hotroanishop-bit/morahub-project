@@ -1,12 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-helpers";
+import crypto from "crypto";
 
 function generateApiKey(): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
-  let key = "mh-";
-  for (let i = 0; i < 48; i++) key += chars.charAt(Math.floor(Math.random() * chars.length));
-  return key;
+  return "mora_" + crypto.randomBytes(32).toString("hex");
 }
 
 export async function GET() {
@@ -16,7 +14,16 @@ export async function GET() {
 
     const keys = await prisma.apiKey.findMany({
       where: { userId: user.id },
-      include: { project: { select: { id: true, name: true } } },
+      select: {
+        id: true,
+        name: true,
+        key: true,
+        expiresAt: true,
+        lastUsedAt: true,
+        totalCalls: true,
+        createdAt: true,
+        isActive: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -31,33 +38,61 @@ export async function POST(req: NextRequest) {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const body = await req.json();
-    const { name, keyType, expiresAt, allowedIPs, allowedDomains, rateLimit, projectId } = body;
-
-    if (!name?.trim()) return NextResponse.json({ error: "Tên key không được để trống" }, { status: 400 });
-
-    const keyCount = await prisma.apiKey.count({ where: { userId: user.id } });
-    const maxKeys = (user as any).plan?.maxKeys || 3;
-    if (keyCount >= maxKeys) {
-      return NextResponse.json({ error: `Đã đạt giới hạn ${maxKeys} key. Nâng cấp gói.` }, { status: 400 });
+    const { name, expiresInDays } = await req.json();
+    const key = generateApiKey();
+    
+    let expiresAt = null;
+    if (expiresInDays && expiresInDays > 0) {
+      expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + expiresInDays);
     }
 
-    const key = generateApiKey();
-    const apiKey = await prisma.apiKey.create({
+    await prisma.apiKey.create({
       data: {
         userId: user.id,
-        name: name.trim(),
+        name: name || "API Key",
         key,
-        keyType: keyType || "FULL",
-        expiresAt: expiresAt ? new Date(expiresAt) : null,
-        allowedIPs: allowedIPs ? JSON.stringify(allowedIPs) : null,
-        allowedDomains: allowedDomains ? JSON.stringify(allowedDomains) : null,
-        rateLimit: rateLimit || null,
-        projectId: projectId || null,
+        expiresAt,
       },
     });
 
-    return NextResponse.json({ success: true, key: { id: apiKey.id, key: apiKey.key, name: apiKey.name } });
+    return NextResponse.json({ key, name, expiresAt });
+  } catch (error) {
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { keyId } = await req.json();
+    const newKey = generateApiKey();
+
+    await prisma.apiKey.update({
+      where: { id: keyId, userId: user.id },
+      data: { key: newKey, totalCalls: 0, totalTokens: 0 },
+    });
+
+    return NextResponse.json({ key: newKey });
+  } catch (error) {
+    return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { keyId } = await req.json();
+
+    await prisma.apiKey.delete({
+      where: { id: keyId, userId: user.id },
+    });
+
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }

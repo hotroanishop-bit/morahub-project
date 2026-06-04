@@ -2,10 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-helpers";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const url = new URL(req.url);
+    const action = url.searchParams.get("action");
+
+    if (action === "count") {
+      const count = await prisma.userNotification.count({
+        where: { userId: user.id, isRead: false },
+      });
+      return NextResponse.json({ count });
+    }
 
     const notifications = await prisma.userNotification.findMany({
       where: { userId: user.id },
@@ -23,19 +33,22 @@ export async function POST(req: NextRequest) {
   try {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    if (user.role !== "ADMIN") return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const body = await req.json();
-    const { title, message, type } = body;
+    const { notificationId } = await req.json();
 
-    if (!title || !message) return NextResponse.json({ error: "Thiếu thông tin" }, { status: 400 });
+    if (notificationId === "all") {
+      await prisma.userNotification.updateMany({
+        where: { userId: user.id, isRead: false },
+        data: { isRead: true },
+      });
+    } else {
+      await prisma.userNotification.updateMany({
+        where: { id: notificationId, userId: user.id },
+        data: { isRead: true },
+      });
+    }
 
-    const users = await prisma.user.findMany({ select: { id: true } });
-    const notifications = await prisma.userNotification.createMany({
-      data: users.map((u) => ({ userId: u.id, title, message, type: type || "info" })),
-    });
-
-    return NextResponse.json({ success: true, count: notifications.count });
+    return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: "Lỗi server" }, { status: 500 });
   }

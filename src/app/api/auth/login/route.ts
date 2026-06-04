@@ -66,6 +66,16 @@ export async function POST(req: NextRequest) {
     // Log successful login
     await logRequest(req, user.id, "login_success", { email: cleanEmail });
 
+    // Notify new device login
+    try {
+      const forwarded = req.headers.get("x-forwarded-for");
+      const ip = forwarded?.split(",")[0] || "unknown";
+      const ua = req.headers.get("user-agent") || "unknown";
+      const device = ua.includes("Chrome") ? "Chrome" : ua.includes("Firefox") ? "Firefox" : ua.includes("Safari") ? "Safari" : "Unknown";
+      const { notifyLoginNewDevice } = await import("@/lib/notifications");
+      await notifyLoginNewDevice(user.id, ip, device);
+    } catch {}
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error("[LOGIN] Error:", err);

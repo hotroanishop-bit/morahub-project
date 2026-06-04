@@ -20,6 +20,8 @@ const navItems = [
   { href: "/dashboard/transactions", label: "Lịch Sử GD", icon: ArrowLeftRight },
   { href: "/dashboard/subscription", label: "Gói Cước", icon: Package },
   { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
+  { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
+  { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
   { href: "/dashboard/tickets", label: "Hỗ Trợ", icon: Headphones },
   { href: "/dashboard/ticket-history", label: "Lịch sử hỗ trợ", icon: Clock },
   { href: "/dashboard/api-docs", label: "API Docs", icon: FileText },
@@ -30,6 +32,9 @@ const navItems = [
   { href: "/dashboard/affiliate", label: "Giới Thiệu", icon: Users },
   { href: "/dashboard/settings", label: "Cài Đặt", icon: Settings },
   { href: "/dashboard/security", label: "Bảo Mật", icon: Shield },
+  { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
+  { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
+  { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -68,6 +73,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <>
               <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
               <Link href="/dashboard/admin/tickets" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-orange-600 hover:bg-orange-50 w-full font-medium"><MessageSquare className="w-[18px] h-[18px]" />🎫 Hỗ trợ</Link>
+              <Link href="/dashboard/admin/users" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-purple-600 hover:bg-purple-50 w-full font-medium"><Users className="w-[18px] h-[18px]" />👥 Users</Link>
+              <Link href="/dashboard/admin/bi" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 w-full font-medium"><BarChart3 className="w-[18px] h-[18px]" />📈 BI</Link>
             </>
           )}
           <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 w-full font-medium"><LogOut className="w-[18px] h-[18px]" />Đăng Xuất</button>
