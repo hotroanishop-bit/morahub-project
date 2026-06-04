@@ -233,6 +233,15 @@ export default function SettingsPage() {
         </a>
       </div>
 
+      {/* Messenger Verification */}
+      <div className="bg-white rounded-2xl border border-slate-100 p-6">
+        <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2"><MessageCircle className="w-5 h-5 text-blue-500" /> Liên Kết Messenger</h3>
+        <p className="text-xs text-slate-500 mb-4">Liên kết Facebook Messenger để nhận thông báo nhanh hơn</p>
+        <div className="p-3 bg-slate-50 rounded-xl">
+          <p className="text-xs text-slate-500">💬 Messenger Bot đang trong giai đoạn thiết lập. Sắp ra mắt!</p>
+        </div>
+      </div>
+
       {/* Danger Zone */}
       <div className="bg-red-50 rounded-2xl border border-red-200 p-6">
         <h3 className="font-bold text-red-800 mb-4 flex items-center gap-2"><AlertTriangle className="w-5 h-5" /> Vùng Nguy Hiểm</h3>

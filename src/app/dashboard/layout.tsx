@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock, Download, Ticket, BookOpen, CreditCard } from "lucide-react";
+import { LayoutDashboard, MessageCircle, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock, Download, Ticket, BookOpen, CreditCard } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import AnnouncementBanner from "@/components/announcement-banner";
 import { useState } from "react";
@@ -89,6 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link href="/dashboard/admin/models" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-green-600 hover:bg-green-50 w-full font-medium"><Cpu className="w-[18px] h-[18px]" />🤖 Models</Link>
               <Link href="/dashboard/admin/plans" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-purple-600 hover:bg-purple-50 w-full font-medium"><Package className="w-[18px] h-[18px]" />📦 Plans</Link>
               <Link href="/dashboard/admin/announcements" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-orange-600 hover:bg-orange-50 w-full font-medium"><FileText className="w-[18px] h-[18px]" />📢 Announcements</Link>
+              <Link href="/dashboard/admin/messenger" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 w-full font-medium"><MessageCircle className="w-[18px] h-[18px]" />💬 Messenger Broadcast</Link>
             </>
           )}
           <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 w-full font-medium"><LogOut className="w-[18px] h-[18px]" />Đăng Xuất</button>

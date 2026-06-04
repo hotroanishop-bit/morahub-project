@@ -30,6 +30,8 @@ model User {
   telegramVerified Boolean   @default(false)
   telegramVerifyCode String?
   telegramVerifyExpiry DateTime?
+  messengerId         String?
+  messengerVerified   Boolean   @default(false)
   projects         Project[]
   tickets          Ticket[]
   webhooks         Webhook[]
