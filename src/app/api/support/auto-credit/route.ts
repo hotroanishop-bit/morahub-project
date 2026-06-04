@@ -1,13 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth-helpers";
-import { safeCredit, checkFraudIndicators, validateAmount, validateReference, sanitizeInput, findTransactionByReference } from "@/lib/security";
+import { safeCredit, checkFraudIndicators, validateReference, sanitizeInput, findTransactionByReference } from "@/lib/security";
+import { checkRateLimit, logRequest } from "@/lib/security-middleware";
+
+// Rate limit: 10 auto-credit attempts per hour per user
+const RATE_LIMIT = 10;
+const WINDOW_MS = 60 * 60 * 1000;
 
 export async function POST(req: NextRequest) {
   try {
     // ========== AUTH CHECK ==========
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // ========== RATE LIMITING ==========
+    const rateLimit = checkRateLimit(`auto-credit:${user.id}`, RATE_LIMIT, WINDOW_MS);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Quá nhiều yêu cầu. Vui lòng thử lại sau." }, { status: 429 });
+    }
 
     const body = await req.json();
     const { reference, wrongContent, wrongAmount, accountName, accountNumber } = body;
@@ -19,9 +30,9 @@ export async function POST(req: NextRequest) {
     if (!refValidation.valid) return NextResponse.json({ error: refValidation.error }, { status: 400 });
 
     const cleanRef = refValidation.value!;
-    const cleanWrongContent = wrongContent ? sanitizeInput(wrongContent) : undefined;
-    const cleanAccountName = accountName ? sanitizeInput(accountName) : undefined;
-    const cleanAccountNumber = accountNumber ? sanitizeInput(accountNumber) : undefined;
+    const cleanWrongContent = wrongContent ? sanitizeInput(String(wrongContent)) : undefined;
+    const cleanAccountName = accountName ? sanitizeInput(String(accountName)) : undefined;
+    const cleanAccountNumber = accountNumber ? sanitizeInput(String(accountNumber)) : undefined;
 
     // ========== FIND TRANSACTION (secure lookup) ==========
     const tx = await findTransactionByReference(cleanRef);
@@ -49,6 +60,7 @@ export async function POST(req: NextRequest) {
             accountNumber: cleanAccountNumber,
           },
         });
+        await logRequest(req, user.id, "auto_credit_fraud", { reference: cleanRef, reasons: fraud.reasons });
         return NextResponse.json({
           success: false,
           error: "Giao dịch được đánh dấu nghi ngờ. Vui lòng liên hệ nhân viên.",
@@ -67,6 +79,9 @@ export async function POST(req: NextRequest) {
     if (!result.success) {
       return NextResponse.json({ success: false, error: result.error }, { status: 400 });
     }
+
+    // Log successful auto-credit
+    await logRequest(req, user.id, "auto_credit_success", { reference: cleanRef, amount: result.amount });
 
     // ========== NOTIFY ADMIN ==========
     const admin = await prisma.user.findFirst({ where: { role: "ADMIN" } });
