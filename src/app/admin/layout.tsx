@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, Users, Cpu, ArrowLeftRight, LogOut, Shield, Menu, X, Settings, Key, Bell, Ticket, History, BarChart3, Activity, Mail, Megaphone, TrendingUp } from "lucide-react";
+import { LayoutDashboard, Users, Cpu, ArrowLeftRight, LogOut, Shield, Menu, X, Settings, Key, Bell, BarChart3, Megaphone } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import { useState } from "react";
 
@@ -13,16 +13,11 @@ const navItems = [
   { href: "/admin/models", label: "Models", icon: Cpu },
   { href: "/admin/keys", label: "API Keys", icon: Key },
   { href: "/admin/transactions", label: "Giao Dịch", icon: ArrowLeftRight },
-  { href: "/admin/tickets", label: "Ticket Hỗ Trợ", icon: Bell },
+  { href: "/admin/tickets", label: "Ticket", icon: Bell },
   { href: "/admin/notifications", label: "Thông Báo", icon: Bell },
-  { href: "/admin/coupons", label: "Coupon", icon: Ticket },
-  { href: "/admin/settings", label: "Cài Đặt", icon: Settings },
-  { href: "/admin/audit", label: "Audit Log", icon: History },
-  { href: "/admin/analytics", label: "Revenue", icon: BarChart3 },
-  { href: "/admin/health", label: "System Health", icon: Activity },
-  { href: "/admin/model-performance", label: "Model Perf", icon: TrendingUp },
-  { href: "/admin/mass-email", label: "Mass Email", icon: Mail },
   { href: "/admin/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/admin/analytics", label: "Revenue", icon: BarChart3 },
+  { href: "/admin/settings", label: "Cài Đặt", icon: Settings },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

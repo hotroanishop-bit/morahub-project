@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
-import { LayoutDashboard, MessageCircle, Key, BarChart3, Wallet, Package, FileText, Settings, LogOut, Menu, X, Bell, Shield, Folder, Headphones, ArrowLeftRight, Cpu, Play, Users, Webhook, ClipboardList, MessageSquare, Clock, Download, Ticket, BookOpen, CreditCard } from "lucide-react";
+import { LayoutDashboard, Key, BarChart3, Wallet, Package, Settings, LogOut, Menu, X, Bell, Shield, Headphones, ArrowLeftRight, Cpu, Folder } from "lucide-react";
 import ThemeToggle from "@/components/theme-toggle";
 import AnnouncementBanner from "@/components/announcement-banner";
 import { useState } from "react";
@@ -16,35 +16,12 @@ const navItems = [
   { href: "/dashboard/models", label: "Models & Giá", icon: Cpu },
   { href: "/dashboard/usage", label: "Sử Dụng", icon: BarChart3 },
   { href: "/dashboard/top-up", label: "Nạp Tiền", icon: Wallet },
-  { href: "/dashboard/support", label: "Hỗ Trợ Nạp Tiền", icon: Wallet },
   { href: "/dashboard/transactions", label: "Lịch Sử GD", icon: ArrowLeftRight },
   { href: "/dashboard/subscription", label: "Gói Cước", icon: Package },
   { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
-  { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
-  { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
-  { href: "/dashboard/activity", label: "Hoạt Động", icon: Clock },
-  { href: "/dashboard/export", label: "Xuất Dữ Liệu", icon: Download },
-  { href: "/dashboard/coupons", label: "Coupon", icon: Ticket },
-  { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/dashboard/docs", label: "API Docs", icon: BookOpen },
   { href: "/dashboard/tickets", label: "Hỗ Trợ", icon: Headphones },
-  { href: "/dashboard/ticket-history", label: "Lịch sử hỗ trợ", icon: Clock },
-  { href: "/dashboard/api-docs", label: "API Docs", icon: FileText },
-  { href: "/dashboard/playground", label: "Playground", icon: Play },
-  { href: "/dashboard/cost-alerts", label: "Cảnh Báo Chi Phí", icon: Bell },
-  { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/dashboard/request-logs", label: "Request Logs", icon: ClipboardList },
-  { href: "/dashboard/affiliate", label: "Giới Thiệu", icon: Users },
   { href: "/dashboard/settings", label: "Cài Đặt", icon: Settings },
   { href: "/dashboard/security", label: "Bảo Mật", icon: Shield },
-  { href: "/dashboard/notifications", label: "Thông Báo", icon: Bell },
-  { href: "/dashboard/ticket-chat", label: "Chat Ticket", icon: MessageSquare },
-  { href: "/dashboard/api-keys", label: "API Keys", icon: Key },
-  { href: "/dashboard/activity", label: "Hoạt Động", icon: Clock },
-  { href: "/dashboard/export", label: "Xuất Dữ Liệu", icon: Download },
-  { href: "/dashboard/coupons", label: "Coupon", icon: Ticket },
-  { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/dashboard/docs", label: "API Docs", icon: BookOpen },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -80,17 +57,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <div className="p-3 border-t border-slate-100 space-y-0.5">
           {isAdmin && (
-            <>
-              <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
-              <Link href="/dashboard/admin/tickets" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-orange-600 hover:bg-orange-50 w-full font-medium"><MessageSquare className="w-[18px] h-[18px]" />🎫 Hỗ trợ</Link>
-              <Link href="/dashboard/admin/users" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-purple-600 hover:bg-purple-50 w-full font-medium"><Users className="w-[18px] h-[18px]" />👥 Users</Link>
-              <Link href="/dashboard/admin/bi" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 w-full font-medium"><BarChart3 className="w-[18px] h-[18px]" />📈 BI</Link>
-              <Link href="/dashboard/admin/transactions" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 w-full font-medium"><CreditCard className="w-[18px] h-[18px]" />💳 Giao dịch</Link>
-              <Link href="/dashboard/admin/models" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-green-600 hover:bg-green-50 w-full font-medium"><Cpu className="w-[18px] h-[18px]" />🤖 Models</Link>
-              <Link href="/dashboard/admin/plans" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-purple-600 hover:bg-purple-50 w-full font-medium"><Package className="w-[18px] h-[18px]" />📦 Plans</Link>
-              <Link href="/dashboard/admin/announcements" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-orange-600 hover:bg-orange-50 w-full font-medium"><FileText className="w-[18px] h-[18px]" />📢 Announcements</Link>
-              <Link href="/dashboard/admin/messenger" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-blue-600 hover:bg-blue-50 w-full font-medium"><MessageCircle className="w-[18px] h-[18px]" />💬 Messenger Broadcast</Link>
-            </>
+            <Link href="/admin" onClick={() => setSidebarOpen(false)} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-rose-600 hover:bg-rose-50 w-full font-medium"><Shield className="w-[18px] h-[18px]" />Quản Trị</Link>
           )}
           <button onClick={() => signOut({ callbackUrl: "/" })} className="flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm text-slate-500 hover:text-red-600 hover:bg-red-50 w-full font-medium"><LogOut className="w-[18px] h-[18px]" />Đăng Xuất</button>
         </div>
